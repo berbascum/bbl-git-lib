@@ -1,0 +1,43 @@
+bbl-git-lib (1.0.0.1+git20240613230535.3694f60.testing) testing; urgency=medium
+
+  [berbascum]
+  * (3694f60) Add pkg_rootfs dir 
+  * (33b8156) Move main lib to libs/modules dir 
+  * (25aff21) Add .gitignore 
+  * (11c8e93) Add debian pckaging 
+  * (d0fda7a) Split: the library was splitted to it's own project 
+  * (8022109) New: fn_bblgit_create_tag independent function to create a tag 
+  * (156f424) Fix: some author related bugs in fn_bblgit_changelog_build 
+  * (2d1a4fb) Fix: IFS var management in bblg general lib 
+  * (24b53eb) Fix: error when creating last_commit_tag if previously exist 
+  * (9898f16) Fix: an error when trying to commit changelog caused by edited files not found was fixed 
+  * (0756145) Remove: date related testing lines from bblgit gen_changelog function 
+  * (c0f9173) Fix: a date format problem changelog build was fixed 
+  * (eb0bd01) Fix: the generated changelog was empty of commits 
+  * (849beb1) Update: add main src file to the changelog commit 
+  * (c1ad05b) New: Commit the generated coangelog and the version update on main src file 
+              Fix: the last git tag was not properly detected
+  * (ad25aa2) Remove: bblgit,unused vars in gen_changelog function 
+  * (63e7b20) Update: bblgit, if there is only one tag, set pre_commit_id=first_commit 
+  * (58d278f) New: function to check and confif the last 2 git tags imported from berb-docker-mgr 
+  * (5bc418d) New: bblgit, bash function to build the changelog file from git history 
+  * (6c7cf9a) Fixes: on the abort and error functions 
+  * (7030ab7) New: bbl_git_lib.sh to globalize some git tasks 
+  * (ed657a6) Fixes: erros detected while testing were fixed 
+  * (f03612f) Add: deps to debian/control 
+  * (3b35bfc) New: fzf_menu function imported from bssf deprecated lib that should be revised 
+  * (8b94d89) New: function ECHO in bbgl to print an empty line before the message 
+  * (598c935) Fix: exec permission on lib scripts 
+  * (bb79f4e) New: log_level debug2 that enables ultra debug for many debug messages in loops 
+  * (fde251c) Improve: some prints on the bbgl check_script_flags has been improved 
+  * (0acc0f6) New: universal function to check script flags, and implemented on log-level flag 
+  * (465415d) New: parse_action ask_empty_vars on parse config files feature 
+  * (38ba91e) Update: file_2_parse varname to search 
+  * (12ae7fd) Update: some adaptation changes and improvements in conffile parser function 
+  * (57ede0a) Update: some adaptation changes in IFS_newline function 
+  * (441f747) Import: set and unset IFS_newline function from bssf 
+  * (55e4a8c) Import: parse conf file vars by section function from bssf 
+  * (c666fd6) Update: stdout messages on some functions to be all aligned 
+  * (85d525a) New: Initial libs moved from berb-docker-mgr package to be shared with other scripts 
+
+ -- berbascum <berbascum@ticv.cat>  Thu, 13 Jun 2024 23:05:35 +0200
