@@ -1,4 +1,2 @@
-# berb-bash-libs
-Bash libs for berbascum's bash tools
-
-### Usage
+# bbl-git-lib
+Bash lib with git functions to be used by berbascum's scripts
