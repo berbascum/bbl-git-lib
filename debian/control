@@ -1,0 +1,16 @@
+Source: bbl-git-lib
+Maintainer: berbascum
+Section: libs
+Priority: optional
+Build-Depends: debhelper (>= 10),
+               debhelper-compat (= 13),
+Standards-Version: 4.5.0.3
+
+Package: bbl-git-lib
+Section: libs
+Architecture: all
+Depends: ${misc:Depends},
+	 awk,
+	 wget,
+	 git,
+Description: berbascum's bash git functions
