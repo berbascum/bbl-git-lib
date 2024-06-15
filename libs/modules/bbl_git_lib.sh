@@ -47,6 +47,23 @@ fn_bblgit_debian_control_found() {
     [ ! -f "debian/control" ] && abort "debian control file not found!"
 }
 
+fn_bblgit_origin_status_ckeck() {
+    ## Check the remote origin status
+    current_branch=$(git branch | grep "*" | awk '{print $2}')
+    ## Check if current branch exists in origin
+    origin_branch_found=$(git log --decorate | grep "origin/${current_branch}")
+    [ -z "${origin_branch_found}" ] && error "Curr branch \"${current_branch}\" not exist in origin"
+    ## Check if origin is updated
+    origin_is_updated=$(git log --decorate | head -n 1 | grep "origin/${current_branch}")
+    if [ -z "${origin_is_updated}"  ]; then
+        info "The current branch \"${current_branch}\" is not updated on origin."
+        ASK " An updated origin is a requirement. Want to push last changes? [ y|n ]: "
+        [ "${answer}" == "y" ] && git push origin ${current_branch} || abort "Canceled by user!"
+    else
+	info "The branch on origin is updated!"
+    fi
+}
+
 fn_bblgit_last_two_tags_check() {
     ## Check if the has commit has a tag
     last_commit_tag="$(git tag --contains "HEAD")"
