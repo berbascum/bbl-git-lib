@@ -193,6 +193,9 @@ fn_bblgit_commit_changes() {
     file_updated_status=$(git status | grep "${file_updated}")
     [ -z "${file_updated}" ] && error "Something went wrong when trying to commit \"${file_updated}\""
     info "Committing the updated \"${file_updated}\"..."
+    git status
+    ask "Want to continue? [ y|n ]: "
+    [ "${answer}" != "y" ] && abort "Aborted by user!"
     git add "${file_updated}"
     git commit -m "${commit_msg}"
 }
