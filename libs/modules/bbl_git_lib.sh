@@ -187,19 +187,13 @@ fn_bblgit_changelog_build() {
     INFO "Finalized changelog file build from git log..."
 }
 
-fn_bblgit_changelog_commit() {
-    ## First check possible edited files rather than changelog and commit if exist
-    arr_files_may_have_been_edited=( "debian/changelog" "${package_name}.sh" )
-    arr_files_to_commit=()
-    for file_edited in ${arr_files_may_have_been_edited[@]}; do
-	[ -f "${file_edited}" ] && arr_files_to_commit+=( "${file_edited}" )
-    done
-    ## Check arr_files to_commit befor doing the commit
-    if [ "${#arr_files_to_commit[@]}" -eq "0" ]; then
-        error "debian/changelog not found when trying to commit it!"
-    else
-        info "Creating commit with the updated changelog..."
-        git add "${arr_files_to_commit[@]}"
-        git commit -m "Build \"${last_commit_tag}\" version: debian/changelog and other version related upgrades"
-    fi
+fn_bblgit_commit_changes() {
+    file_updated="$1"
+    commit_msg="$2"
+    file_updated_status=$(git status | grep "${file_updated}")
+    [ -z "${file_updated}" ] && error "Something went wrong when trying to commit \"${file_updated}\""
+    info "Committing the updated \"${file_updated}\"..."
+    git add "${file_updated}"
+    git commit -m "${commit_msg}"
 }
+
