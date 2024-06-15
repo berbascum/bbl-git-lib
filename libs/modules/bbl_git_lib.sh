@@ -64,31 +64,76 @@ fn_bblgit_origin_status_ckeck() {
     fi
 }
 
+fn_bblgit_linux_dist_releases_get() {
+    url="$1"
+    arr_releases_default=( "stable" "testing" "unstable" "sid" "oldstable" "experimental" )
+    arr_releases_dists=()
+    IFS=$' '
+    while read  release; do 
+	arr_releases_dists+=( "${release}" )
+    done <<<$(curl -s "${url}" | grep "\<li\>" | grep -v -E "devel|http|Pack|Inter" | grep "Debian " \
+	 | awk -F'="' '{print $2}' | awk -F'/' '{print $1}')
+    valid_tag_prefixes=$(echo ${arr_releases_default[*]} ${arr_releases_dists[*]})
+    IFS=$' \t\n'
+}
+
+fn_bblgit_tag_check_get_info() {
+    tag_name="$1"
+    ## Check if the typed tag has a valid format
+    tag_prefix=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
+    [ -z "${tag_prefix}" ] && error "The tag name has not a valid format!"
+    ## Check if the typed tag is a valid release to avoid dpkg build problems with changelog
+    tag_release_is_valid=$(echo ${valid_tag_prefixes} | grep "${tag_prefix}")
+    [ -z "${tag_release_is_valid}" ] && error "The tag name is not a valid release!"
+    tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $2}')
+    [ -z "${tag_suffix}" ] && error "The tag name has not a valid format!"
+    tag_suffix_is_valid=$(echo "${tag_suffix}" | grep "^[0-9]")
+    [ -z "${tag_suffix_is_valid}" ] && error "The tag_suffix (version) should start by a number!"
+    ## If the typed tag is valid, set the final var and continue execution
+    last_commit_tag="${tag_name}"
+    tag_release="${tag_prefix}"
+    tag_version="${tag_suffix}"
+    tag_version=$(echo ${tag_version} | sed s/"-"/"."/g)
+    tag_version_int=$(echo ${tag_version} | sed s/"\."/""/g | sed s/"-"/""/g)
+    debug "tag_release = ${tag_release}"
+    debug "tag_version = ${tag_version}"
+    debug "tag_version:int = ${tag_version_int}"
+}
+
+fn_bblgit_ask_for_tag() {
+    info "Last tag \"${last_tag}\" and it's \"${commit_old_count}\" commits old"
+    info "Enter a tag name in \"release/version\" format. List of valid releases:"
+    echo; echo "${valid_tag_prefixes}"
+    ASK "Or empty to cancel: "
+    [ -z "${answer}" ] && abort "Canceled by user!"
+    ## Check if the tag name is valid
+    fn_bblgit_tag_check_get_info "${answer}"
+}
+
 fn_bblgit_last_two_tags_check() {
+    ## Get a list of valid debian releases to avoid buildpackage error related to changelog
+    fn_bblgit_linux_dist_releases_get "https://www.debian.org/releases/"
+    debug "valid_tag_prefixes = ${valid_tag_prefixes}"
     ## Check if the has commit has a tag
     last_commit_tag="$(git tag --contains "HEAD")"
-    if [ -z "${last_commit_tag}" ]; then
+    if [ -n "${last_commit_tag}" ]; then
+        ## Check if the tag name is valid
+        fn_bblgit_tag_check_get_info "${last_commit_tag}"
+    else
         clear && info "The last commit has not assigned a tag and is required"
 	start_with_last_commit_tag="False"
         last_tag=$(git tag --sort=-creatordate | sed -n '1p')
         if [ -n "${last_tag}" ]; then
 	    last_commit_tagged=$(git log --decorate  --abbrev-commit \
 	       | grep 'tag:' | head -n 1 | awk '{print $2}')
-            info "Last commit taged \"${last_commit_tagged}\""
+            info "Last commit tagged \"${last_commit_tagged}\""
             commit_old_count=$(git rev-list --count HEAD ^"${last_commit_tagged}")
-            info "Last tag \"${last_tag}\" and it's \"${commit_old_count}\" commits old"
-            ask "Enter a tag name in \"<tag_prefix>/<version>\" format or empty to cancel: "
-            [ -z "${answer}" ] && abort "Canceled by user!"
-            input_tag_is_valid=$(echo "${answer}" | grep "\/")
-            [ -z "${input_tag_is_valid}" ] && error "The typed tag has not a valid format!"
-            last_commit_tag="${answer}"
+	    ## ask fir a tag
+            fn_bblgit_ask_for_tag
 	else
             info "No git tags found!"
-            ask "Enter a tag name in \"<tag_prefix>/<version>\" format or empty to cancel: "
-            [ -z "${answer}" ] && abort "Canceled by user!"
-            input_tag_is_valid=$(echo "${answer}" | grep "\/")
-            [ -z "${input_tag_is_valid}" ] && error "The typed tag has not a valid format!"
-            last_commit_tag="${answer}"
+	    ## ask fir a tag
+            fn_bblgit_ask_for_tag
 	fi
     fi
     debug "last_commit_tag definition finished"
@@ -144,8 +189,8 @@ fn_bblgit_changelog_build() {
     date_full=$(date +"%a, %d %b %Y %H:%M:%S %z")
     debug "date_full = ${date_full}"
     date_short=$(date +%Y%m%d%H%M%S)
-    pkg_version_git=$(echo "${package_version}+git${date_short}.${last_commit_id}.${pkg_dist_channel}")
-    echo "${package_name} (${pkg_version_git}) ${pkg_dist_channel}; urgency=medium" \
+    pkg_version_git=$(echo "${tag_version}+git${date_short}.${last_commit_id}.${tag_release}")
+    echo "${package_name} (${pkg_version_git}) ${tag_release}; urgency=medium" \
 	> "${changelog_git_relpath_filename}"
     echo >> "${changelog_git_relpath_filename}"
     debug "prev_last_commit_tag = ${prev_last_commit_tag}"
