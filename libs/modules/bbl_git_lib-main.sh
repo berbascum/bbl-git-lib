@@ -87,25 +87,30 @@ fn_bblgit_linux_dist_releases_get() {
 	arr_releases_dists+=( "${release}" )
     done <<<$(curl -s "${url}" | grep "\<li\>" | grep -v -E "devel|http|Pack|Inter" | grep "Debian " \
 	 | awk -F'="' '{print $2}' | awk -F'/' '{print $1}')
-    valid_tag_prefixes=$(echo ${arr_releases_default[*]} ${arr_releases_dists[*]})
+    valid_tag_releases=$(echo ${arr_releases_default[*]} ${arr_releases_dists[*]})
     IFS=$' \t\n'
 }
 
 fn_bblgit_tag_check_get_info() {
     tag_name="$1"
     ## Check if the typed tag has a valid format
-    tag_prefix=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
-    [ -z "${tag_prefix}" ] && error "The tag name has not a valid format!"
-    ## Check if the typed tag is a valid release to avoid dpkg build problems with changelog
-    tag_release_is_valid=$(echo ${valid_tag_prefixes} | grep "${tag_prefix}")
-    [ -z "${tag_release_is_valid}" ] && error "The tag name is not a valid release!"
-    tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $2}')
-    [ -z "${tag_suffix}" ] && error "The tag name has not a valid format!"
+    if [ "${pkg_type}" == "debian_package" ]; then
+        tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
+        tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $2}')
+    elif [ "${pkg_type}" == "droidian_adaptation" ]; then
+        tag_prefix=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
+        tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $2}')
+        tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $3}')
+    fi
+    [ -z "${tag_release}" ] && error "The tag name has not a valid format!"
+    ## Check if the tag name has  a valid release to avoid dpkg build problems with changelog
+    tag_release_is_valid=$(echo ${valid_tag_releases} | grep "${tag_release}")
+    [ -z "${tag_release_is_valid}" ] && error "The tag name has not a valid release!"
+    [ -z "${tag_suffix}" ] && error "The tag name has not a valid format (a version was expected!"
     tag_suffix_is_valid=$(echo "${tag_suffix}" | grep "^[0-9]")
     [ -z "${tag_suffix_is_valid}" ] && error "The tag_suffix (version) should start by a number!"
     ## If the typed tag is valid, set the final var and continue execution
     last_commit_tag="${tag_name}"
-    tag_release="${tag_prefix}"
     tag_version="${tag_suffix}"
     tag_version=$(echo ${tag_version} | sed s/"-"/"."/g)
     tag_version_int=$(echo ${tag_version} | sed s/"\."/""/g | sed s/"-"/""/g)
