@@ -1,6 +1,14 @@
-bbl-git-lib (1.0.0.1+git20240613230535.3694f60.testing) testing; urgency=medium
+bbl-git-lib (1.1.0.1+git20240616184913.534815e.testing) testing; urgency=medium
 
   [berbascum]
+  * (534815e) Update: some improvements in fn_bblgit_commit_changes 
+  * (e957387) Debug: add some debug line 
+  * (b19ff8a) Rename: main src was renamed and updated with some header extra info to use with bbl_generan_parse_header_section feature 
+  * (73c65f8) Update: the check_git_tag feature has been hard improved with some additional control functions 
+  * (2d0186f) Update: ask to accept before commiting in fn_bblgit_commit_changes 
+  * (d944b1f) New: universal fn_bblgit_commit_changes replaces fn_bblgit_changelog_commit 
+  * (57ab9fe) Neu: fn_bblgit_origin_status_ckeck to ensure that the origin is updated 
+  * (0caabf6) Build "testing/1.0.0.1" version: debian/changelog and other version related upgrades 
   * (3694f60) Add pkg_rootfs dir 
   * (33b8156) Move main lib to libs/modules dir 
   * (25aff21) Add .gitignore 
@@ -40,4 +48,4 @@ bbl-git-lib (1.0.0.1+git20240613230535.3694f60.testing) testing; urgency=medium
   * (c666fd6) Update: stdout messages on some functions to be all aligned 
   * (85d525a) New: Initial libs moved from berb-docker-mgr package to be shared with other scripts 
 
- -- berbascum <berbascum@ticv.cat>  Thu, 13 Jun 2024 23:05:35 +0200
+ -- berbascum <berbascum@ticv.cat>  Sun, 16 Jun 2024 18:49:13 +0200
