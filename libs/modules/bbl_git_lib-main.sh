@@ -248,15 +248,15 @@ fn_bblgit_changelog_build() {
 }
 
 fn_bblgit_commit_changes() {
-    file_updated="$1"
-    commit_msg="$2"
-    file_updated_status=$(git status | grep "${file_updated}")
-    [ -z "${file_updated}" ] && error "Something went wrong when trying to commit \"${file_updated}\""
-    info "Committing the updated \"${file_updated}\"..."
+    #file_updated="$1"
+    commit_msg="$1"
+    #file_updated_status=$(git status | grep "${file_updated}")
+    #[ -z "${file_updated}" ] && error "Some went wrong when trying to commit \"${file_updated}\""
+    #info "Committing the updated \"${file_updated}\"..."
     git status
-    ask "Want to continue? [ y|n ]: "
+    ASK "The above files and dirs will be added and commited. Want to continue? [ y|n ]: "
     [ "${answer}" != "y" ] && abort "Aborted by user!"
-    git add "${file_updated}"
+    git add -A
     git commit -m "${commit_msg}"
 }
 
