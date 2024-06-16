@@ -137,6 +137,7 @@ fn_bblgit_last_two_tags_check() {
         clear && info "The last commit has not assigned a tag and is required"
 	start_with_last_commit_tag="False"
         last_tag=$(git tag --sort=-creatordate | sed -n '1p')
+	debug "last_tag = ${last_tag}"
         if [ -n "${last_tag}" ]; then
 	    last_commit_tagged=$(git log --decorate  --abbrev-commit \
 	       | grep 'tag:' | head -n 1 | awk '{print $2}')
