@@ -164,6 +164,7 @@ fn_bblgit_last_two_tags_check() {
             | grep "${prev_last_commit_tag}" | head -n 1 | awk '{print $2}')
     else
         ## If there is only the last tag, set the initial commit as prev_last_commit
+	
         prev_last_commit_id=$(git log --pretty=format:"%h" | tail -n 1)
     fi
     debug "prev_last_commit_id definition finished"
@@ -217,6 +218,7 @@ fn_bblgit_changelog_build() {
     debug "last_commit_tag = ${last_commit_tag}"
     [ -d "commits_tmpdir" ] ||  mkdir -v "commits_tmpdir"
     git log --pretty=format:"%h %an %ae %cn %ce %cD %ci %s" "${prev_last_commit_id}"..."${last_commit_id}" > commits_tmpdir/export.txt
+    debug "File commits_tmpdir/export.txt created"
     while read commit; do
 	commit_id_short=$(echo ${commit} | awk '{print $1}')
 	author_name=$(echo ${commit} | awk '{print $2}') ## %an
@@ -229,6 +231,7 @@ fn_bblgit_changelog_build() {
         #COMMITTER_DATE_COMPACTED=$(echo ${commit} | awk '{print $12 $13}' \
 	    ## | tr  -d "-" | tr -d ":")
 	commit_header=$(echo ${commit} | awk '{ for (i=15; i<=NF; i++) printf $i " " }')
+	debug2 "Commit header filtered = ${commit_header}"
 	commit_body=$(git show --format=%b ${commit_id_short} | awk 'NR==1,/diff --git/' \
 	    | grep --invert-match 'diff --git' | egrep '^[[:blank:]]*[^[:blank:]#]')
         ## Put the commits in a file for each commiter
