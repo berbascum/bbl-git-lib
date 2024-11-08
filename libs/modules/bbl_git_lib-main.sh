@@ -39,7 +39,7 @@ fn_header_info() {
     BIN_SRC_TYPE="bash"
     BIN_SRC_EXT="sh"
     BIN_NAME="bbl_git_lib"
-    TOOL_VERSION="1.1.0.1"
+    TOOL_VERSION="1.1.1.1"
     TOOL_RELEASE="testing"
     URGENCY='optional'
     TESTED_BASH_VER='5.2.15'
