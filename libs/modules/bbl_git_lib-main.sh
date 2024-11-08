@@ -80,7 +80,7 @@ fn_bblgit_origin_status_ckeck() {
 
 fn_bblgit_linux_dist_releases_get() {
     url="$1"
-    arr_releases_default=( "stable" "testing" "unstable" "sid" "oldstable" "experimental" )
+    arr_releases_default=( "trixie" "stable" "testing" "unstable" "sid" "oldstable" "experimental" )
     arr_releases_dists=()
     IFS=$' '
     while read  release; do 
