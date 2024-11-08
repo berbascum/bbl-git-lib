@@ -121,7 +121,7 @@ fn_bblgit_tag_check_get_info() {
 
 fn_bblgit_ask_for_tag() {
     info "Last tag \"${last_tag}\" and it's \"${commit_old_count}\" commits old"
-    info "Enter a tag name in \"release/version\" format. List of valid releases:"
+    info "Enter a tag name in \"${TAG_FORMAT}\" format. List of valid releases:"
     echo; echo "${valid_tag_prefixes}"
     ASK "Or empty to cancel: "
     [ -z "${answer}" ] && abort "Canceled by user!"
