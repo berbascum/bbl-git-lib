@@ -1,14 +1,11 @@
-bbl-git-lib (1.2.1.1+git20241109031631.4e2109b.testing) testing; urgency=medium
+bbl-git-lib (1.2.2.1+git20241109042332.0d3363f.testing) testing; urgency=medium
 
   [berbascum]
+  * (0d3363f) (pkg_rootfs) upgrade: dir upgrade to last changes 
+  * (7b72410) Increase version strings 
+  * (355e14e) (script) main: fix missing eval before the GIT_COMMIT_CMD var execution 
+  * (8702e40) Update changelog 
   * (4e2109b) (pkg_rootfs) upgrade: dir upgrade to last changes 
   * (922d1c7) Increase version strings 
-  * (9614ae1) (script) main: new fn to check if a signing key is found to use in commits, introduced GIT_COMMIT_CMD var 
-  * (a310be0) Build release: pre-configs before building new version 1.1.1.1-testing 
-  * (5c04335) (pkg_rootfs) upgrade: dir upgrade to last changes 
-  * (61eae3a) Increase version strings 
-  * (45df314) (scripts) main: add trixie to the valid releases array 
-  * (2ef1149) (scripts) main: use TAG_FORMAT var to personalize the tag creation help 
-  * (f2605b2) Debug: add some debug in the main lib file 
 
- -- berbascum <berbascum@ticv.cat>  Sat, 09 Nov 2024 03:16:31 +0100
+ -- berbascum <berbascum@ticv.cat>  Sat, 09 Nov 2024 04:23:32 +0100
