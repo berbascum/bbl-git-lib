@@ -276,5 +276,5 @@ fn_bblgit_commit_changes() {
     [ "${answer}" != "y" ] && abort "Aborted by user!"
     git add -A
     fn_bblgit_check_if_can_sign
-    "${GIT_COMMIT_CMD}"
+    eval "${GIT_COMMIT_CMD}"
 }
