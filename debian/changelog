@@ -1,18 +1,14 @@
-bbl-git-lib (1.1.1.1+git20241108223142.5c04335.testing) testing; urgency=medium
+bbl-git-lib (1.2.1.1+git20241109031631.4e2109b.testing) testing; urgency=medium
 
   [berbascum]
+  * (4e2109b) (pkg_rootfs) upgrade: dir upgrade to last changes 
+  * (922d1c7) Increase version strings 
+  * (9614ae1) (script) main: new fn to check if a signing key is found to use in commits, introduced GIT_COMMIT_CMD var 
+  * (a310be0) Build release: pre-configs before building new version 1.1.1.1-testing 
   * (5c04335) (pkg_rootfs) upgrade: dir upgrade to last changes 
   * (61eae3a) Increase version strings 
   * (45df314) (scripts) main: add trixie to the valid releases array 
   * (2ef1149) (scripts) main: use TAG_FORMAT var to personalize the tag creation help 
   * (f2605b2) Debug: add some debug in the main lib file 
-  * (9a8dcc5) Fix: error in fn_bblgit_tag_check_get_info when building a droidian adaptation pkg 
-  * (c94fdd4) Build release: pre-configs before building new version 1.1.0.1 
-  * (534815e) Update: some improvements in fn_bblgit_commit_changes 
-  * (e957387) Debug: add some debug line 
-  * (b19ff8a) Rename: main src was renamed and updated with some header extra info to use with bbl_generan_parse_header_section feature 
-  * (73c65f8) Update: the check_git_tag feature has been hard improved with some additional control functions 
-  * (2d0186f) Update: ask to accept before commiting in fn_bblgit_commit_changes 
-  * (d944b1f) New: universal fn_bblgit_commit_changes replaces fn_bblgit_changelog_commit 
 
- -- berbascum <berbascum@ticv.cat>  Fri, 08 Nov 2024 22:31:42 +0100
+ -- berbascum <berbascum@ticv.cat>  Sat, 09 Nov 2024 03:16:31 +0100
