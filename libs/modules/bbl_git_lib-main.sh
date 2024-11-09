@@ -61,6 +61,16 @@ fn_bblgit_debian_control_found() {
     [ ! -f "debian/control" ] && abort "debian control file not found!"
 }
 
+fn_bblgit_check_if_can_sign() {
+    git_key_found="$(gpg --list-keys --keyid-format LONG | grep $(git config --global user.signingkey))"
+
+    if [ -n "${git_key_found}" ]; then
+        GIT_COMMIT_CMD='git commit -S -m "${commit_msg}"'
+    else
+        GIT_COMMIT_CMD='git commit -m "${commit_msg}"'
+    fi
+}
+
 fn_bblgit_origin_status_ckeck() {
     ## Check the remote origin status
     current_branch=$(git branch | grep "*" | awk '{print $2}')
@@ -265,6 +275,6 @@ fn_bblgit_commit_changes() {
     ASK "The above files and dirs will be added and commited. Want to continue? [ y|n ]: "
     [ "${answer}" != "y" ] && abort "Aborted by user!"
     git add -A
-    git commit -m "${commit_msg}"
+    fn_bblgit_check_if_can_sign
+    "${GIT_COMMIT_CMD}"
 }
-
