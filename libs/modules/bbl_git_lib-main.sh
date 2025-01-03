@@ -40,6 +40,7 @@ fn_header_info() {
     BIN_SRC_EXT="sh"
     BIN_NAME="bbl_git_lib"
     TOOL_VERSION="1.2.2.1"
+    TOOL_VERSION_INT="1221"
     TOOL_RELEASE="testing"
     URGENCY='optional'
     TESTED_BASH_VER='5.2.15'
