@@ -97,6 +97,7 @@ fn_bblgit_linux_dist_releases_get() {
 	arr_releases_dists+=( "${release}" )
     done <<<$(curl -s "${url}" | grep "\<li\>" | grep -v -E "devel|http|Pack|Inter" | grep "Debian " \
 	 | awk -F'="' '{print $2}' | awk -F'/' '{print $1}')
+
     valid_tag_releases=$(echo ${arr_releases_default[*]} ${arr_releases_dists[*]})
     IFS=$' \t\n'
 }
@@ -107,11 +108,13 @@ fn_bblgit_tag_check_get_info() {
     if [ "${pkg_type}" == "debian_package" ]; then
         tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
         tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $2}')
-    elif [ "${pkg_type}" == "droidian_adaptation" ]; then
+
+    elif [[ "${pkg_type}" =~ ^(droidian_adaptation|droidian_package)$ ]]; then
         tag_prefix=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
         tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $2}')
         tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $3}')
     fi
+
     [ -z "${tag_release}" ] && error "The tag name has not a valid format!"
     ## Check if the tag name has  a valid release to avoid dpkg build problems with changelog
     tag_release_is_valid=$(echo ${valid_tag_releases} | grep "${tag_release}")
@@ -143,6 +146,7 @@ fn_bblgit_last_two_tags_check() {
     ## Get a list of valid debian releases to avoid buildpackage error related to changelog
     fn_bblgit_linux_dist_releases_get "https://www.debian.org/releases/"
     debug "valid_tag_prefixes = ${valid_tag_prefixes}"
+
     ## Check if the has commit has a tag
     last_commit_tag="$(git tag --contains "HEAD")"
     if [ -n "${last_commit_tag}" ]; then
