@@ -1,11 +1,14 @@
-bbl-git-lib (1.2.2.1+git20241109042332.0d3363f.testing) testing; urgency=medium
+bbl-git-lib (1.2.3.1+git20250103015602.aa32fee.testing) testing; urgency=medium
 
   [berbascum]
+  * (aa32fee) (gitignore) skip: bdm-build.conf 
+  * (5864a90) (pkg_rootfs) upgrade: dir upgrade to last changes 
+  * (90e514c) Increase version strings 
+  * (9286de1) (bbl-git) script: new: for update the bdm scripts on the rootfs 
+  * (5796e4c) (bbl-git) main-lib: add support for the new build-droidian-package bdm sub-pligin 
+  * (beee967) Build release: pre-configs before building new version 1.2.2.1-testing 
   * (0d3363f) (pkg_rootfs) upgrade: dir upgrade to last changes 
   * (7b72410) Increase version strings 
   * (355e14e) (script) main: fix missing eval before the GIT_COMMIT_CMD var execution 
-  * (8702e40) Update changelog 
-  * (4e2109b) (pkg_rootfs) upgrade: dir upgrade to last changes 
-  * (922d1c7) Increase version strings 
 
- -- berbascum <berbascum@ticv.cat>  Sat, 09 Nov 2024 04:23:32 +0100
+ -- berbascum <berbascum@ticv.cat>  Fri, 03 Jan 2025 01:56:01 +0100
