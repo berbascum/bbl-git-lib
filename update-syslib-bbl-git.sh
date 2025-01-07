@@ -1,6 +1,6 @@
 #!/bin/bash
 
-lib_src_relpath_file="libs/modules/bbl_git_lib-main.sh"
+lib_src_relpath_file="bbl_git_lib-main.sh"
 
 lib_ver_int=$(grep "TOOL_VERSION_INT" ${lib_src_relpath_file} | awk -F'=' '{print $2}' | sed 's/"//g')
 
