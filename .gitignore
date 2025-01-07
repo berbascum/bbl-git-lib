@@ -5,3 +5,4 @@ debian/debhelper-build-stamp
 debian/files
 out-bbl-git-lib
 bdm-build.conf
+commit_msg
