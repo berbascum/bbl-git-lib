@@ -77,7 +77,7 @@ fn_bblgit_workdir_status_check() {
 
 fn_bblgit_dir_is_git() {
 ## Abort if no .git directory found
-    [ ! -d ".git" ] && abort "bbl-git: The current dir should be a git repo!"
+    [  -e ".git" ] || error "bbl-git: The current dir should be a git repo!"
 }
 
 fn_bblgit_debian_control_found() {
