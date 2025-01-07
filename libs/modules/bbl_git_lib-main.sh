@@ -47,19 +47,42 @@ fn_header_info() {
 }
 #[HEADER_END]
 
+source /usr/lib/berb-bash-libs/bbl_general_lib_1101
+
+fn_bblgit_check_args() {
+    ## Check for --build-release=release flag
+    flag_name="build-release" fn_bbgl_check_args_search_flag $@
+    debug "bbl-git: FLAG_FOUND_VALUE = \"${FLAG_FOUND_VALUE}\""
+    build_release_supplied=${FLAG_FOUND_VALUE}
+    info "bbl-git: build_release_supplied: \"${FLAG_FOUND_VALUE}\""
+
+    ## Check for --build-tag-prefix=str flag
+    flag_name="build-tag-prefix" fn_bbgl_check_args_search_flag $@
+    debug "bbl-git: FLAG_FOUND_VALUE = \"${FLAG_FOUND_VALUE}\""
+    build_tag_prefix_supplied=${FLAG_FOUND_VALUE}
+    info "bbl-git: build_tag_prefix_supplied: \"${FLAG_FOUND_VALUE}\""
+
+    ## Check for --batch mode flag
+    if [ -n "$(echo $@ | grep "\-\-batch")" ]; then
+        BATCH_MODE=true
+    else
+        BATCH_MODE=false
+    fi
+    info "batch mode: ${BATCH_MODE}"
+}
 
 fn_bblgit_workdir_status_check() {
-    [ -n "$(git status | grep "staged")" ] && abort "The git workdir is not clean!"
+    [ -n "$(git status | grep "staged")" ] && abort "bbl-git: The git workdir is not clean!"
 }
 
 fn_bblgit_dir_is_git() {
 ## Abort if no .git directory found
-    [ ! -d ".git" ] && abort "The current dir should be a git repo!"
+    [ ! -d ".git" ] && abort "bbl-git: The current dir should be a git repo!"
 }
 
 fn_bblgit_debian_control_found() {
 ## Abort if no debian/control file found
-    [ ! -f "debian/control" ] && abort "debian control file not found!"
+    [ ! -f "debian/control" ] && abort "bbl-git: debian control file not found!"
 }
 
 fn_bblgit_check_if_can_sign() {
@@ -73,56 +96,198 @@ fn_bblgit_check_if_can_sign() {
 }
 
 fn_bblgit_origin_status_ckeck() {
-    ## Check the remote origin status
-    current_branch=$(git branch | grep "*" | awk '{print $2}')
-    ## Check if current branch exists in origin
+    ## Check the remote origin status for branch
+    [ -z "${current_branch}" ] && error "fn_bblgit_origin_status_ckeck: current_branch not defined"
+        #current_branch=$(git branch | grep "*" | awk '{print $2}')
+    ## Get origin branch info
     origin_branch_found=$(git log --decorate | grep "origin/${current_branch}")
-    [ -z "${origin_branch_found}" ] && error "Curr branch \"${current_branch}\" not exist in origin"
-    ## Check if origin is updated
-    origin_is_updated=$(git log --decorate | head -n 1 | grep "origin/${current_branch}")
-    if [ -z "${origin_is_updated}"  ]; then
-        info "The current branch \"${current_branch}\" is not updated on origin."
-        ASK " An updated origin is a requirement. Want to push last changes? [ y|n ]: "
-        [ "${answer}" == "y" ] && git push origin ${current_branch} || abort "Canceled by user!"
-    else
-	info "The branch on origin is updated!"
+    origin_branch_updated=$(git log --decorate | head -n 1 | grep "origin/${current_branch}")
+
+    if [ -n "${origin_branch_updated}" ]; then
+        info "bbl-git: Current branch \"${current_branch}\" exist in origin and is updated."
+        git_origin_status=branch-right
+        branch updated
+    elif [ -n "${origin_branch_found}" ]; then
+        info "bbl-git: Current branch \"${current_branch}\" exist in origin but is not updated."
+        git_origin_status=branch-outdated
+    elif [ -z "${origin_branch_found}" ]; then
+        info "bbl-git: Current branch \"${current_branch}\" not exist in origin."
+        git_origin_status=branch-missing
+    fi
+
+    ## Origin only will be updated in interactive mode
+    ## TODO: implement updates on origin using flags in batch mode
+    if [ "${BATCH_MODE}" == "false" ]; then
+        if [[ "${git_origin_status}" \
+          =~ ^(branch-missing|branch-outdated)$ ]]; then
+            ASK "bbl-git: Current branch \"${current_branch}\" not not found in origin. Push? [ y | any ]: "
+            case "${answer}" in
+                y)
+                  git push origin ${current_branch}
+                  ;;
+                *)
+              esac
+        fi
     fi
 }
 
 fn_bblgit_linux_dist_releases_get() {
-    url="$1"
-    arr_releases_default=( "trixie" "stable" "testing" "unstable" "sid" "oldstable" "experimental" )
-    arr_releases_dists=()
-    IFS=$' '
-    while read  release; do 
+  url="https://www.debian.org/releases/"
+  arr_releases_default=( "trixie" "stable" "testing" "unstable" "sid" "oldstable" "experimental" )
+  arr_releases_dists=()
+  IFS=$' '
+  while read release; do
 	arr_releases_dists+=( "${release}" )
-    done <<<$(curl -s "${url}" | grep "\<li\>" | grep -v -E "devel|http|Pack|Inter" | grep "Debian " \
+  done <<<$(curl -s "${url}" | grep "\<li\>" | grep -v -E "devel|http|Pack|Inter" | grep "Debian " \
 	 | awk -F'="' '{print $2}' | awk -F'/' '{print $1}')
-
-    valid_tag_releases=$(echo ${arr_releases_default[*]} ${arr_releases_dists[*]})
-    IFS=$' \t\n'
+       arr_valid_build_releases=( ${arr_releases_default[@]} ${arr_releases_dists[@]} )
+  IFS=$' \t\n'
 }
 
-fn_bblgit_tag_check_get_info() {
+fn_git_ask_for_tagname() {
+    ## ask for a tag
+    tag_format_str="[some_prefix]/[other_string]/release/[other_string]version"
+    last_commit_tagged_id=$(git log --decorate  --abbrev-commit \
+	       | grep 'tag:' | head -n 1 | awk '{print $2}')
+    last_commit_tagged_old_count=$(git rev-list --count HEAD ^"${last_commit_tagged_id}")
+    echo ""
+    echo "bbl-git: build_release_supplied was not supplied, and the last commit is not tagged"
+    echo "bbl-git: bbl-git: Last commit tagged \"${last_commit_tagged_id}\" as \"${last_tag}\""
+    echo "bbl-git: The last tag: \"${last_tag}\" tag is \"${last_commit_tagged_old_count}\" commits old"
+    echo ""
+    echo "Enter a new name for tagging the last commit,"
+    echo "or an existing tag, and continue the build"
+    echo ""
+    echo "Format: ${tag_format_str}"
+    echo ""
+    echo "List of valid releases:"
+    echo "${arr_valid_build_releases[@]}"
+    ASK "Or press Intro to abort: "
+    ## Check if contain a valid release
+    for valid_build_release in ${arr_valid_build_releases[@]}; do
+      valid_build_release_found=$(echo "${answer}" \
+        | grep "${valid_build_release}")
+      [ -n "${valid_build_release_found}" ] && break
+    done
+    ## Ensure a valid release is in the supplied tag name
+    [ -n "${valid_build_release_found}" ] \
+      || error "bbl-git: The supplied tag name should contain a valid release"
+    build_release=${valid_build_release}
+}
+
+fn_bblgit_tag_check() {
     tag_name="$1"
-    ## Check if the typed tag has a valid format
+    debug "${FUNCNAME[0]}: Starting tag chack, tag_name: ${tag_name}"
+    # build_tag_prefix_supplied=berb
+    arr_tag_field_seps=( '/' ) # Allowed tag seps list
+    tag_field_seps_min="2" # Min release/version
+    tag_fields_min=$((tag_field_seps_min + 1)) # Min release/version
+    tag_field_seps_max=""  # No limit by default
+    ## Override defults for previously defined vars
+    [ -n "${arr_GIT_TAG_NAME_SEPARATORS}" ] && \
+      arr_tag_field_seps=${arr_GIT_TAG_NAME_SEPARATORS[@]}
+    ## Now BUILD_TAG_PREFIX is passed using a flag,
+    ## and checkargs fn from bbl-general
+       #[ -n "${BUILD_TAG_PREFIX}" ] && \
+       #build_tag_prefix_supplied=$BUILD_TAG_PREFIX}
+    [ -n "${GIT_TAG_NAME_SEPARATORS_MIN}" ] && \
+      tag_field_seps_min=${GIT_TAG_NAME_SEPARATORS_MIN}
+    [ -n "${GIT_TAG_NAME_SEPARATORS_MAX}" ] && \
+      tag_field_seps_max=${GIT_TAG_NAME_SEPARATORS_MAX}
+
+    ## Search for valid separators in tag_name
+    debug "bbl-git: Searching in the tag name for a separator from the allowed separators list"
+    tag_fields_count=""
+    for tag_field_sep in ${arr_tag_field_seps[@]}; do
+        debug "bbl-git: Trying separator \"${tag_field_sep}\""
+        ## Split fields in a temporary array
+        IFS_BKP=$IFS
+        IFS=$tag_field_sep read -ra arr_tag_fields <<< "${tag_name}"
+        IFS=$IFS_BKP
+        ## Check for the min fields count
+        if [ "${#arr_tag_fields[@]}" -ge "${tag_field_seps_min}" ]; then
+            tag_fields_count="${#arr_tag_fields[@]}"
+            debug "bbl-git: The tag name has the min fields count"
+            break
+        elif [ "${#arr_tag_fields[@]}" -lt "${tag_field_seps_min}" ]; then
+            debug "bbl-git: The tag name has not the min fields count, or wrong separator \"${tag_field_sep}\""
+        fi
+    done
+
+    ## Abort if no tag found with required format
+    [ "${#arr_tag_fields[@]}" -ge "${tag_field_seps_min}" ] \
+        || error "bbl-git: No tag found with min fields count, or wrong separator"
+
+    ## Check the tag prefix
+    tag_prefix_current="${arr_tag_fields[0]}"
+    debug "${FUNCNAME[0]}: tag_prefix_current: ${tag_prefix_current}"
+    if [ -n "${build_tag_prefix_supplied}" ]; then
+        if [ "${tag_prefix_current}" == "${build_tag_prefix_supplied}" ]; then
+            build_tag_prefix=${build_tag_prefix_supplied}
+            info "bbl-git: The build_tag_prefix_supplied \"${build_tag_prefix_supplied}\" is valid"
+        else
+            error "Sbbl-git: pecified build_tag_prefix_supplied \"${build_tag_prefix_supplied}\" not in tag"
+        fi
+    else
+        ## prefix prèviament no definit
+        build_tag_prefix=${tag_prefix_current}
+        info "bbl-git: build_tag_prefix free \"${build_tag_prefix}\", defined from tag"
+    fi
+
+    ## Get the tag version (last field)
+    tag_version=$(echo ${tag_name} \
+      | awk -F$tag_field_sep '{print $NF}')
+
+    ## Search for a field with valid release
+    for tag_field in ${arr_tag_fields[@]}; do
+        for valid_release in "${arr_valid_build_releases[@]}"; do
+            if [ "${tag_field}" == "${valid_release}" ]; then
+                info "bbl-git: Found a valid release in tag name"
+                tag_release=${valid_release}
+                [ -z "${build_release}" ] \
+                    && build_release=${tag_release}
+                break
+            fi
+        done
+    done
+
+<< "DEPRECATED"
+#  ## Abort if no valid release found in the tag name
+#  [ -n "${tag_release}" ] || error \
+#    "No tags wich contain a valid release name were found"
+DEPRECATED
+
+    info "bbl-git: tag_name: ${tag_name}"
+    info "bbl-git: build_release: ${build_release}"
+    info "bbl-git: build_tag_prefix: ${build_tag_prefix}"
+    info "bbl-git: tag_version: ${tag_version}"
+    info "bbl-git: tag_fields_count: ${tag_fields_count}"
+
+    if [ -n "${tag_fields_count}" ]; then
+        build_tag="${build_tag_precheck}"
+    else
+        error "bbl-git: The tag \"${build_tag_precheck}\": invalid format"
+    fi
+
+<< "OLD_CKECK_TAG_METHOD"
+    ## Check if the tag has a valid format
     if [ "${pkg_type}" == "debian_package" ]; then
         tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
         tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $2}')
-
     elif [[ "${pkg_type}" =~ ^(droidian_adaptation|droidian_package)$ ]]; then
         tag_prefix=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $1}')
         tag_release=$(echo "${tag_name}" | grep "\/" | awk -F'/' '{print $2}')
         tag_suffix=$(echo "${tag_name}" |awk -F'/' '{print $3}')
+    elif [ "${pkg_type}" == "kernel" ] then
+	read -p "bbl-git: TODO kernel condition fn_bblgit_tag_check"
     fi
-
     [ -z "${tag_release}" ] && error "The tag name has not a valid format!"
     ## Check if the tag name has  a valid release to avoid dpkg build problems with changelog
-    tag_release_is_valid=$(echo ${valid_tag_releases} | grep "${tag_release}")
-    [ -z "${tag_release_is_valid}" ] && error "The tag name has not a valid release!"
-    [ -z "${tag_suffix}" ] && error "The tag name has not a valid format (a version was expected!"
+    tag_release_is_valid=$(echo ${arr_valid_build_releases} | grep "${tag_release}")
+    [ -z "${tag_release_is_valid}" ] && error "bbl-git: The tag name has not a valid release!"
+    [ -z "${tag_suffix}" ] && error "bbl-git: The tag name has not a valid format (a version was expected!"
     tag_suffix_is_valid=$(echo "${tag_suffix}" | grep "^[0-9]")
-    [ -z "${tag_suffix_is_valid}" ] && error "The tag_suffix (version) should start by a number!"
+    [ -z "${tag_suffix_is_valid}" ] && error "bbl-git: The tag_suffix (version) should start by a number!"
     ## If the typed tag is valid, set the final var and continue execution
     last_commit_tag="${tag_name}"
     tag_version="${tag_suffix}"
@@ -131,47 +296,116 @@ fn_bblgit_tag_check_get_info() {
     debug "tag_release = ${tag_release}"
     debug "tag_version = ${tag_version}"
     debug "tag_version:int = ${tag_version_int}"
+OLD_CKECK_TAG_METHOD
 }
 
-fn_bblgit_ask_for_tag() {
-    info "Last tag \"${last_tag}\" and it's \"${commit_old_count}\" commits old"
-    info "Enter a tag name in \"${TAG_FORMAT}\" format. List of valid releases:"
-    echo; echo "${valid_tag_prefixes}"
-    ASK "Or empty to cancel: "
-    [ -z "${answer}" ] && abort "Canceled by user!"
-    ## Check if the tag name is valid
-    fn_bblgit_tag_check_get_info "${answer}"
-}
+fn_bblgit_version_info_from_git() {
+#fn_bblgit_last_two_tags_check() {
+## Get version info for packaging from git branch/tag
 
-fn_bblgit_last_two_tags_check() {
-    ## Get a list of valid debian releases to avoid buildpackage error related to changelog
-    fn_bblgit_linux_dist_releases_get "https://www.debian.org/releases/"
-    debug "valid_tag_prefixes = ${valid_tag_prefixes}"
+## Logic scheme:
+    ## if build_release_supplied defined;
+       ## define build_release="${build_release_supplied} and build_tag_precheck=last_tag_with supplied release in name, if exist
+    ## elif Not supplied build_release_supplied;
+       ## if last commit is tagged and set build_tag_precheck;
+          ## if Not exist;
+             ## if Not batch;
+                ## ask for tag name (if supplied tag not exist, create on last commit;
+                   ## condifions:
+                   ## if want to supply tag;
+                      ## if exist;
+                         ## define build_tag, undefine build_tag_precheck;
+                      ## if Not exist;
+                         ## define build_tag_precheck;
+                      ## if Not want supply a tag, abort (for now);
 
-    ## Check if the has commit has a tag
-    last_commit_tag="$(git tag --contains "HEAD")"
-    if [ -n "${last_commit_tag}" ]; then
-        ## Check if the tag name is valid
-        fn_bblgit_tag_check_get_info "${last_commit_tag}"
+    ## Set early vars
+    build_tag=""
+    last_tag=$(git tag --sort=-creatordate | sed -n '1p')
+
+    ## First set a list of valid releases for packaging
+    fn_bblgit_linux_dist_releases_get
+
+    ## Search for a supplied release branch to build
+    if [ -n "${build_release_supplied}" ]; then
+        debug "bbl-git: build_release_supplied previously defined: \"${build_release_supplied}\""
+        build_release="${build_release_supplied}"
+        ## Check if the supplied release has tags
+        last_tag_build_release=$(git tag --sort=-creatordate \
+            | grep "${build_release}" | head -n 1)
+        if [ -n "${last_tag_build_release}" ]; then
+            build_tag_precheck="${last_tag_build_release}"
+            debug "bbl-git: The tag_name contains the supplied release"
+        else
+            error "bbl-git: Tag_name not contains the supplied release"
+        fi
     else
-        clear && info "The last commit has not assigned a tag and is required"
-	start_with_last_commit_tag="False"
-        last_tag=$(git tag --sort=-creatordate | sed -n '1p')
-	debug "last_tag = ${last_tag}"
-        if [ -n "${last_tag}" ]; then
-	    last_commit_tagged=$(git log --decorate  --abbrev-commit \
-	       | grep 'tag:' | head -n 1 | awk '{print $2}')
-            info "Last commit tagged \"${last_commit_tagged}\""
-            commit_old_count=$(git rev-list --count HEAD ^"${last_commit_tagged}")
-	    ## ask fir a tag
-            fn_bblgit_ask_for_tag
-	else
-            info "No git tags found!"
-	    ## ask fir a tag
-            fn_bblgit_ask_for_tag
-	fi
+        debug "bbl-git: build_release_supplied not defined"
+        ## Check if the last commit is tagged
+        last_commit_tag=$(git tag --contains "HEAD")
+        if [ -n "${last_commit_tag}" ]; then
+            debug "bbl-git: The last commit is tagged"
+            build_tag_precheck="${last_commit_tag}"
+            info "bbl-git: Defined build_tag_precheck: \"${build_tag_precheck}\""
+        else
+            debug "bbl-git: The last commit is not tagged"
+            if [ "${BATCH_MODE}" == "false" ]; then
+                ## For non batch mode:
+                ## if last commit is tagged, use it
+                ## untagged, ask tag creation
+                debug "bbl-git: no tag in last commit, no batch"
+                ## ask for a tag
+                fn_git_ask_for_tagname
+                [ -z "${answer}" ] && abort "bbl-git: Aborted"
+                if [ -z "$(git tag | grep "^${answer}$")" ]; then
+                    ## no tag found with user supplied name
+                    debug "bbl-git: No tag found with the user supplied name, will be checked"
+                    new_tag_name="${answer}"
+                    build_tag_precheck="${new_tag_name}"
+                    info "bbl-git: Defined build_tag_precheck: \"${build_tag_precheck}\""
+                elif [ -n "$(git tag | grep "^${answer}$")" ]; then
+                    ## tag found with supplied name
+                    debug "bbl-git: tag found with supplied name, not need to check"
+                    build_tag="${answer}"
+                    build_tag_precheck="" # no need to check
+                    info "bbl-git: Defined build_tag_precheck: \"${build_tag_precheck}\""
+                fi
+            fi # batch fals -z build_release_supplied -z last_commit_tag
+        fi # last_commit_tag
+    fi # build_release supplied or not
+
+    [ -n "${build_tag_precheck}" ] && fn_bblgit_tag_check "${build_tag_precheck}"
+
+    ## Create a new tag if requested
+    if [ -n "${new_tag_name}" ]; then
+        debug "bbl-git: Tag creation was requested: \"${build_tag}\""
+        tag_commit_id="HEAD" # empty for head
+        pause "bbl-git: a punt de crear new_tag_name: \"${new_tag_name}\" "
+        fn_bblgit_create_tag \
+          "${new_tag_name}" \
+          "${tag_commit_id}"
     fi
-    debug "last_commit_tag definition finished"
+
+    ## Branch info
+    ## Get early vars
+    current_branch=$(git branch | awk '/\*/ {print $2}')
+    build_branch="${current_branch}"
+    arr_branch_field_seps=( '-' '_' ) # Allowed branch seps list
+    for branch_field_sep in ${arr_tag_field_seps[@]}; do
+        if [ -n "$(echo "${build_branch}" | grep "${branch_field_sep}")" ]; then
+            debug "bbl-git: separator \"${branch_field_sep}\" foung in the current branch name"
+            break
+        fi
+    done
+    branch_version_comment=$(echo ${build_branch} | sed "s|\${branch_field_sep}|\.|g")
+    branch_version_comment=$(echo "${build_branch}")
+
+    info "bbl-git: branch_version_comment: ${branch_version_comment}"
+    build_version_comment="${branch_version_comment}"."${build_release}"
+    info "bbl-git: build_version_comment: ${build_version_comment}"
+
+
+<< "VARS_UNUSED_BUT_MIGHT_BE_USEFUL_FROM_OLD_CHECK_METHOD"
     last_commit_id=$(git log --decorate  --abbrev-commit | head -n 1 | awk '{print $2}')
     prev_last_commit_tag="$(git tag --sort=-creatordate | sed -n '2p')"
     if [ -n "${prev_last_commit_tag}" ]; then
@@ -182,23 +416,28 @@ fn_bblgit_last_two_tags_check() {
 	
         prev_last_commit_id=$(git log --pretty=format:"%h" | tail -n 1)
     fi
-    debug "prev_last_commit_id definition finished"
-    debug "Last commit tag defined: ${last_commit_tag}"
-    debug "Last commit id defined: ${last_commit_id}"
-    debug "PrevLast commit tag defined: ${prev_last_commit_tag}"
-    debug "PrevLast commit id defined: ${prev_last_commit_id}"
+    debug "bbl-git: prev_last_commit_id definition finished"
+    debug "bbl-git: Last commit tag defined: ${last_commit_tag}"
+    debug "bbl-git: Last commit id defined: ${last_commit_id}"
+    debug "bbl-git: PrevLast commit tag defined: ${prev_last_commit_tag}"
+    debug "bbl-git: PrevLast commit id defined: ${prev_last_commit_id}"
+VARS_UNUSED_BUT_MIGHT_BE_USEFUL_FROM_OLD_CHECK_METHOD
 }
 
 fn_bblgit_create_tag() {
-    ## First ensure again that the tag not exist yet
-    tag_exist=$(git log --decorate | grep "tag:" | grep "${last_commit_tag}")
-    [ -n "${tag_exis}" ] && return
-    ## Create the last_commit_tag if was defined by this script
-    if [ "${start_with_last_commit_tag}" == "False" ]; then
-        info "Creating tag \"${last_commit_tag}\" on the last commit..."
-        git tag "${last_commit_tag}"
-	git push --tags origin
-    fi
+  tag_name=$1
+  tag_from=$2
+  [ -n "${tag_name}" ] || error "bbl-git: create_tag: A tag name is required"
+  info "bbl-git: Creating tag \"${tag_name}\" on the last commit..."
+  git tag "${tag_name}" "${tag_from}"
+  [ $? -eq "0" ] || error "Tag creation failed!"
+
+  ## Ask for pushing changes
+  if [ "${BATCH_MODE}" == "false" ]; then
+    ASK "bbl-git: Push the tag ${tag_name} to origin? [ y | any ]: " answer
+    [ "${answer}" == "y" ] \
+      && git push origin "${tag_name}"
+  fi
 }
 
 fn_bblgit_changelog_build() {
@@ -213,27 +452,27 @@ fn_bblgit_changelog_build() {
     ## Get commit_id short=%h author=%an author_mail=%ae committer=%cn 
     ## committer_mail=%ce date_RFC2822=%aD date_ISO-8601-like=%ai \
     ## header=%s(need to be the last)
-    info "Generating a debian formatted changelog file from git log..."
+    info "bbl-git: Generating a debian formatted changelog file from git log..."
     ## The locale en_US.utf8 should be ensured to avoid format errors in changelog
     en_us_locale=$(locale -a | grep "en_US.utf8")
     if [ -z "${en_us_locale}" ]; then
-	PAUSE "Gen en_US.utf8 locale is needed, the sudo password will be needed!"
+	PAUSE "bbl-git: Gen en_US.utf8 locale is needed, the sudo password will be needed!"
         ${SUDO} sed -i 's/^# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/g' /etc/locale.gen
 	${SUDO}  locale-gen && ${SUDO} update-locale
     fi
     export LC_TIME=en_US.utf8
     date_full=$(date +"%a, %d %b %Y %H:%M:%S %z")
-    debug "date_full = ${date_full}"
+    debug "bbl-git: date_full = ${date_full}"
     date_short=$(date +%Y%m%d%H%M%S)
     pkg_version_git=$(echo "${tag_version}+git${date_short}.${last_commit_id}.${tag_release}")
     echo "${package_name} (${pkg_version_git}) ${tag_release}; urgency=medium" \
 	> "${changelog_git_relpath_filename}"
     echo >> "${changelog_git_relpath_filename}"
-    debug "prev_last_commit_tag = ${prev_last_commit_tag}"
-    debug "last_commit_tag = ${last_commit_tag}"
+    debug "bbl-git: prev_last_commit_tag = ${prev_last_commit_tag}"
+    debug "bbl-git: last_commit_tag = ${last_commit_tag}"
     [ -d "commits_tmpdir" ] ||  mkdir -v "commits_tmpdir"
     git log --pretty=format:"%h %an %ae %cn %ce %cD %ci %s" "${prev_last_commit_id}"..."${last_commit_id}" > commits_tmpdir/export.txt
-    debug "File commits_tmpdir/export.txt created"
+    debug "bbl-git: File commits_tmpdir/export.txt created"
     while read commit; do
 	commit_id_short=$(echo ${commit} | awk '{print $1}')
 	author_name=$(echo ${commit} | awk '{print $2}') ## %an
@@ -246,7 +485,7 @@ fn_bblgit_changelog_build() {
         #COMMITTER_DATE_COMPACTED=$(echo ${commit} | awk '{print $12 $13}' \
 	    ## | tr  -d "-" | tr -d ":")
 	commit_header=$(echo ${commit} | awk '{ for (i=15; i<=NF; i++) printf $i " " }')
-	debug2 "Commit header filtered = ${commit_header}"
+	debug2 "bbl-git: Commit header filtered = ${commit_header}"
 	commit_body=$(git show --format=%b ${commit_id_short} | awk 'NR==1,/diff --git/' \
 	    | grep --invert-match 'diff --git' | egrep '^[[:blank:]]*[^[:blank:]#]')
         ## Put the commits in a file for each commiter
@@ -267,7 +506,7 @@ fn_bblgit_changelog_build() {
     echo  " -- ${changelog_builder_user} <${changelog_builder_email}>  ${date_full}" \
         >> "${changelog_git_relpath_filename}"
     rm -r commits_tmpdir
-    INFO "Finalized changelog file build from git log..."
+    INFO "bbl-git: Finalized changelog file build from git log..."
 }
 
 fn_bblgit_commit_changes() {
@@ -277,8 +516,8 @@ fn_bblgit_commit_changes() {
     #[ -z "${file_updated}" ] && error "Some went wrong when trying to commit \"${file_updated}\""
     #info "Committing the updated \"${file_updated}\"..."
     git status
-    ASK "The above files and dirs will be added and commited. Want to continue? [ y|n ]: "
-    [ "${answer}" != "y" ] && abort "Aborted by user!"
+    ASK "bbl-git: The above files and dirs will be added and commited. Want to continue? [ y|n ]: "
+    [ "${answer}" != "y" ] && abort "bbl-git: Aborted by user!"
     git add -A
     fn_bblgit_check_if_can_sign
     eval "${GIT_COMMIT_CMD}"
