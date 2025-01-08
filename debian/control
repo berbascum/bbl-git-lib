@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 10),
                debhelper-compat (= 13),
 Standards-Version: 4.5.0.3
 
-Package: bbl-git-lib
+Package: bbl-git-lib-1311
 Section: libs
 Architecture: all
 Depends: ${misc:Depends},
