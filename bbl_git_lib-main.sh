@@ -72,17 +72,29 @@ fn_bblgit_check_args() {
 }
 
 fn_bblgit_workdir_status_check() {
-    [ -n "$(git status | grep "staged")" ] && abort "bbl-git: The git workdir is not clean!"
+    if [ -z "$(git status | grep "staged")" ]; then
+        info "${FUNCNAME[0]}: git workdir is clean!"
+    else
+        error "${FUNCNAME[0]}: git workdir is not clean!"
+    fi
 }
 
 fn_bblgit_dir_is_git() {
 ## Abort if no .git directory found
-    [  -e ".git" ] || error "bbl-git: The current dir should be a git repo!"
+    if [ -e ".git" ]; then
+        info "${FUNCNAME[0]}: current dir is a git repo"
+    else
+        error "${FUNCNAME[0]}: current dir should be a git repo!"
+    fi
 }
 
 fn_bblgit_debian_control_found() {
 ## Abort if no debian/control file found
-    [ ! -f "debian/control" ] && abort "bbl-git: debian control file not found!"
+    if [ -e "debian/control" ]; then
+        info "${FUNCNAME[0]}: debian control file found"
+    else
+        error "${FUNCNAME[0]}: debian control file not found!"
+    fi
 }
 
 fn_bblgit_check_if_can_sign() {
