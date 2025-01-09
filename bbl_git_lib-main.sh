@@ -120,8 +120,7 @@ fn_bblgit_origin_status_ckeck() {
 
     if [ -n "${origin_branch_updated}" ]; then
         info "bbl-git: Current branch \"${current_branch}\" exist in origin and is updated."
-        git_origin_status=branch-right
-        branch updated
+        git_origin_status=branch-updated
     elif [ -n "${origin_branch_found}" ]; then
         info "bbl-git: Current branch \"${current_branch}\" exist in origin but is not updated."
         git_origin_status=branch-outdated
