@@ -231,8 +231,6 @@ fn_bblgit_tag_check() {
     done
 
     ## Abort if no tag found with required format
-    printf '%s\n' ${arr_tag_fields[@]}
-    pause "A dalt, printf array tag fields"
     [ "${#arr_tag_fields[@]}" -ge "${tag_field_seps_min}" ] \
         || error "bbl-git: No tag found with min fields count: \"${tag_fields_min}\", or wrong separator"
 
