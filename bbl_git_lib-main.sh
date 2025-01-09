@@ -200,6 +200,7 @@ fn_bblgit_tag_check() {
     ## Override defults for previously defined vars
     [ -n "${arr_GIT_TAG_NAME_SEPARATORS}" ] \
 	&& arr_tag_field_seps=${arr_GIT_TAG_NAME_SEPARATORS[@]}
+    ## DEPRECATED:
     ## Now BUILD_TAG_PREFIX is passed using a flag,
     ## and checkargs fn from bbl-general
        #[ -n "${BUILD_TAG_PREFIX}" ] && \
@@ -314,11 +315,44 @@ OLD_CKECK_TAG_METHOD
 }
 
 fn_bblgit_build_version_info_analyze_ref() {
-#fn_bblgit_last_two_tags_check() {
 ## Get version info for packaging from git branch/tag
 
 ## Logic scheme:
-    ## if build_release_supplied defined;
+## *build_release* ##
+#--build-release=${BUILD_RELEASE} \
+    # build_release_supplied=${FLAG_FOUND_VALUE}
+    # bdm: BUILD_RELEASE: git-repo/bdm-build.conf
+## fn_bblgit_build_version_info_analyze_ref:
+# 1- If
+     # build_release
+       # If tags with release, set last as precheck
+       # If Not tags with release: ERROR
+         # TODO: # Interactive: ask for tag
+                 # Batch: ERROR anyway
+# 2- If Not:
+        # build_release
+          # If
+            # last_commit tagged
+              # set last tag as precheck
+# 3- If Not:
+        # build_release
+        # last_commit tagged
+          # Interactive: ask for a tag
+             # If tag exist, final set, no need ckeck
+             # If tag Not exist, ask create, precheck
+             # If nothing supplied, ABORT
+          # Batch: error
+
+## *tag_prefix* ##
+# Used by fn_bblgit_tag_check as required string in tag
+# --build-tag-prefix=${BUILD_TAG_PREFIX}
+    # build_tag_prefix_supplied=${FLAG_FOUND_VALUE}
+    # bdm: BUILD_TAG_PREFIX: git-repo/bdm-build.conf
+
+
+
+## DEPRECATED ## initial Logic scheme:
+## if build_release_supplied defined;
        ## define build_release="${build_release_supplied} and build_tag_precheck=last_tag_with supplied release in name, if exist
     ## elif Not supplied build_release_supplied;
        ## if last commit is tagged and set build_tag_precheck;
@@ -351,6 +385,7 @@ fn_bblgit_build_version_info_analyze_ref() {
             build_tag_precheck="${last_tag_build_release}"
             debug "bbl-git: The tag_name contains the supplied release"
         else
+            ## TODO: ASK for tag in interactive mode
             error "bbl-git: Tag_name not contains the supplied release"
         fi
     else
