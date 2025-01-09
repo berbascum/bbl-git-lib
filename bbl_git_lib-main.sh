@@ -67,11 +67,11 @@ fn_bblgit_check_args() {
 
     ## Check for --batch mode flag
     if [ -n "$(echo $@ | grep "\-\-batch")" ]; then
-        BATCH_MODE=true
+        BATCH_MODE_BBL_GIT=true
     else
-        BATCH_MODE=false
+        BATCH_MODE_BBL_GIT=false
     fi
-    info "batch mode: ${BATCH_MODE}"
+    info "batch mode: ${BATCH_MODE_BBL_GIT}"
 }
 
 fn_bblgit_workdir_status_check() {
@@ -131,7 +131,7 @@ fn_bblgit_origin_status_ckeck() {
 
     ## Origin only will be updated in interactive mode
     ## TODO: implement updates on origin using flags in batch mode
-    if [ "${BATCH_MODE}" == "false" ]; then
+    if [ "${BATCH_MODE_BBL_GIT}" == "false" ]; then
         if [[ "${git_origin_status}" \
           =~ ^(branch-missing|branch-outdated)$ ]]; then
             ASK "bbl-git: Current branch \"${current_branch}\" not not found in origin. Push? [ y | any ]: "
@@ -363,7 +363,7 @@ fn_bblgit_version_info_from_git() {
             info "bbl-git: Defined build_tag_precheck: \"${build_tag_precheck}\""
         else
             debug "bbl-git: The last commit is not tagged"
-            if [ "${BATCH_MODE}" == "false" ]; then
+            if [ "${BATCH_MODE_BBL_GIT}" == "false" ]; then
                 ## For non batch mode:
                 ## if last commit is tagged, use it
                 ## untagged, ask tag creation
@@ -447,7 +447,7 @@ fn_bblgit_create_tag() {
   [ $? -eq "0" ] || error "Tag creation failed!"
 
   ## Ask for pushing changes
-  if [ "${BATCH_MODE}" == "false" ]; then
+  if [ "${BATCH_MODE_BBL_GIT}" == "false" ]; then
     ASK "bbl-git: Push the tag ${tag_name} to origin? [ y | any ]: " answer
     [ "${answer}" == "y" ] \
       && git push origin "${tag_name}"
