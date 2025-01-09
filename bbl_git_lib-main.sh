@@ -313,7 +313,7 @@ DEPRECATED
 OLD_CKECK_TAG_METHOD
 }
 
-fn_bblgit_version_info_from_git() {
+fn_bblgit_build_version_info_analyze_ref() {
 #fn_bblgit_last_two_tags_check() {
 ## Get version info for packaging from git branch/tag
 
@@ -436,6 +436,18 @@ fn_bblgit_version_info_from_git() {
     debug "bbl-git: PrevLast commit tag defined: ${prev_last_commit_tag}"
     debug "bbl-git: PrevLast commit id defined: ${prev_last_commit_id}"
 VARS_UNUSED_BUT_MIGHT_BE_USEFUL_FROM_OLD_CHECK_METHOD
+}
+
+fn_bblgit_bdm_build_version_info_get() {
+    ## pass required flags to the bblgit check args
+    fn_bblgit_check_args \
+        --batch \
+        --build-release=${BUILD_RELEASE} \
+        --build-tag-prefix=${BUILD_TAG_PREFIX}
+    debug "${FUNCNAME[0]}: Finished bblgit check_args call"
+    ## Get vars from git tag and branch
+    fn_bblgit_build_version_info_analyze_ref
+    debug "${FUNCNAME[0]}: Finished bblgit version_info_from_git call"
 }
 
 fn_bblgit_create_tag() {
