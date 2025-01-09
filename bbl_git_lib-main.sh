@@ -51,13 +51,16 @@ source /usr/lib/berb-bash-libs/bbl_general_lib_1101
 
 fn_bblgit_check_args() {
     ## Check for --build-release=release flag
-    flag_name="build-release" fn_bbgl_check_args_search_flag $@
+    flag_name=build-release
+    fn_bbgl_check_args_search_flag $@
+    debug "Iniciant bblgit check args"
     debug "bbl-git: FLAG_FOUND_VALUE = \"${FLAG_FOUND_VALUE}\""
     build_release_supplied=${FLAG_FOUND_VALUE}
     info "bbl-git: build_release_supplied: \"${FLAG_FOUND_VALUE}\""
 
     ## Check for --build-tag-prefix=str flag
-    flag_name="build-tag-prefix" fn_bbgl_check_args_search_flag $@
+    flag_name="build-tag-prefix"
+    fn_bbgl_check_args_search_flag $@
     debug "bbl-git: FLAG_FOUND_VALUE = \"${FLAG_FOUND_VALUE}\""
     build_tag_prefix_supplied=${FLAG_FOUND_VALUE}
     info "bbl-git: build_tag_prefix_supplied: \"${FLAG_FOUND_VALUE}\""
@@ -196,16 +199,17 @@ fn_bblgit_tag_check() {
     tag_fields_min=$((tag_field_seps_min + 1)) # Min release/version
     tag_field_seps_max=""  # No limit by default
     ## Override defults for previously defined vars
-    [ -n "${arr_GIT_TAG_NAME_SEPARATORS}" ] && \
-      arr_tag_field_seps=${arr_GIT_TAG_NAME_SEPARATORS[@]}
+    [ -n "${arr_GIT_TAG_NAME_SEPARATORS}" ] \
+	&& arr_tag_field_seps=${arr_GIT_TAG_NAME_SEPARATORS[@]}
     ## Now BUILD_TAG_PREFIX is passed using a flag,
     ## and checkargs fn from bbl-general
        #[ -n "${BUILD_TAG_PREFIX}" ] && \
        #build_tag_prefix_supplied=$BUILD_TAG_PREFIX}
-    [ -n "${GIT_TAG_NAME_SEPARATORS_MIN}" ] && \
-      tag_field_seps_min=${GIT_TAG_NAME_SEPARATORS_MIN}
-    [ -n "${GIT_TAG_NAME_SEPARATORS_MAX}" ] && \
-      tag_field_seps_max=${GIT_TAG_NAME_SEPARATORS_MAX}
+    [ -n "${GIT_TAG_NAME_SEPARATORS_MIN}" ] \
+	&& tag_field_seps_min=${GIT_TAG_NAME_SEPARATORS_MIN} \
+	&& tag_fields_min=$((tag_field_seps_min + 1))
+    [ -n "${GIT_TAG_NAME_SEPARATORS_MAX}" ] \
+	&& tag_field_seps_max=${GIT_TAG_NAME_SEPARATORS_MAX}
 
     ## Search for valid separators in tag_name
     debug "bbl-git: Searching in the tag name for a separator from the allowed separators list"
@@ -217,18 +221,20 @@ fn_bblgit_tag_check() {
         IFS=$tag_field_sep read -ra arr_tag_fields <<< "${tag_name}"
         IFS=$IFS_BKP
         ## Check for the min fields count
-        if [ "${#arr_tag_fields[@]}" -ge "${tag_field_seps_min}" ]; then
+        if [ "${#arr_tag_fields[@]}" -ge "${tag_fields_min}" ]; then
             tag_fields_count="${#arr_tag_fields[@]}"
-            debug "bbl-git: The tag name has the min fields count"
+            debug "bbl-git: The tag name has the min fields count: \"${tag_fields_min}\""
             break
-        elif [ "${#arr_tag_fields[@]}" -lt "${tag_field_seps_min}" ]; then
-            debug "bbl-git: The tag name has not the min fields count, or wrong separator \"${tag_field_sep}\""
+        elif [ "${#arr_tag_fields[@]}" -lt "${tag_fields_min}" ]; then
+            debug "bbl-git: The tag name has not the min fields count: \"${tag_fields_min}\", or wrong separator \"${tag_field_sep}\""
         fi
     done
 
     ## Abort if no tag found with required format
+    printf '%s\n' ${arr_tag_fields[@]}
+    pause "A dalt, printf array tag fields"
     [ "${#arr_tag_fields[@]}" -ge "${tag_field_seps_min}" ] \
-        || error "bbl-git: No tag found with min fields count, or wrong separator"
+        || error "bbl-git: No tag found with min fields count: \"${tag_fields_min}\", or wrong separator"
 
     ## Check the tag prefix
     tag_prefix_current="${arr_tag_fields[0]}"
@@ -274,7 +280,6 @@ DEPRECATED
     info "bbl-git: build_tag_prefix: ${build_tag_prefix}"
     info "bbl-git: tag_version: ${tag_version}"
     info "bbl-git: tag_fields_count: ${tag_fields_count}"
-
     if [ -n "${tag_fields_count}" ]; then
         build_tag="${build_tag_precheck}"
     else
@@ -453,8 +458,6 @@ fn_bblgit_create_tag() {
 }
 
 fn_bblgit_changelog_build() {
-    ## TODO: can be problems related to package_name(old_varname) and pkg_name(new_varname)
-    ## TODO: Check/Adapt to get branch/tag new wey
     changelog_git_relpath_filename="debian/changelog"
     changelog_builder_user=$(git config --global user.name)
     changelog_builder_email=$(git config --global user.email)
