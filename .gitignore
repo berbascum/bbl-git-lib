@@ -8,3 +8,4 @@ bdm-build.conf
 commit_msg
 update-bash-lib-version-strings.log
 bdm-script-spl-build-*
+tmp-files/
