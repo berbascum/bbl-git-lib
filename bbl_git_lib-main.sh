@@ -317,56 +317,6 @@ OLD_CKECK_TAG_METHOD
 fn_bblgit_build_version_info_analyze_ref() {
 ## Get version info for packaging from git branch/tag
 
-## Logic scheme:
-## *build_release* ##
-#--build-release=${BUILD_RELEASE} \
-    # build_release_supplied=${FLAG_FOUND_VALUE}
-    # bdm: BUILD_RELEASE: git-repo/bdm-build.conf
-## fn_bblgit_build_version_info_analyze_ref:
-# 1- If
-     # build_release
-       # If tags with release, set last as precheck
-       # If Not tags with release: ERROR
-         # TODO: # Interactive: ask for tag
-                 # Batch: ERROR anyway
-# 2- If Not:
-        # build_release
-          # If
-            # last_commit tagged
-              # set last tag as precheck
-# 3- If Not:
-        # build_release
-        # last_commit tagged
-          # Interactive: ask for a tag
-             # If tag exist, final set, no need ckeck
-             # If tag Not exist, ask create, precheck
-             # If nothing supplied, ABORT
-          # Batch: error
-
-## *tag_prefix* ##
-# Used by fn_bblgit_tag_check as required string in tag
-# --build-tag-prefix=${BUILD_TAG_PREFIX}
-    # build_tag_prefix_supplied=${FLAG_FOUND_VALUE}
-    # bdm: BUILD_TAG_PREFIX: git-repo/bdm-build.conf
-
-
-
-## DEPRECATED ## initial Logic scheme:
-## if build_release_supplied defined;
-       ## define build_release="${build_release_supplied} and build_tag_precheck=last_tag_with supplied release in name, if exist
-    ## elif Not supplied build_release_supplied;
-       ## if last commit is tagged and set build_tag_precheck;
-          ## if Not exist;
-             ## if Not batch;
-                ## ask for tag name (if supplied tag not exist, create on last commit;
-                   ## condifions:
-                   ## if want to supply tag;
-                      ## if exist;
-                         ## define build_tag, undefine build_tag_precheck;
-                      ## if Not exist;
-                         ## define build_tag_precheck;
-                      ## if Not want supply a tag, abort (for now);
-
     ## Set early vars
     build_tag=""
     last_tag=$(git tag --sort=-creatordate | sed -n '1p')
