@@ -453,6 +453,8 @@ fn_bblgit_create_tag() {
 }
 
 fn_bblgit_changelog_build() {
+    ## TODO: can be problems related to package_name(old_varname) and pkg_name(new_varname)
+    ## TODO: Check/Adapt to get branch/tag new wey
     changelog_git_relpath_filename="debian/changelog"
     changelog_builder_user=$(git config --global user.name)
     changelog_builder_email=$(git config --global user.email)
@@ -477,7 +479,7 @@ fn_bblgit_changelog_build() {
     debug "bbl-git: date_full = ${date_full}"
     date_short=$(date +%Y%m%d%H%M%S)
     pkg_version_git=$(echo "${tag_version}+git${date_short}.${last_commit_id}.${tag_release}")
-    echo "${package_name} (${pkg_version_git}) ${tag_release}; urgency=medium" \
+    echo "${pkg_name} (${pkg_version_git}) ${tag_release}; urgency=medium" \
 	> "${changelog_git_relpath_filename}"
     echo >> "${changelog_git_relpath_filename}"
     debug "bbl-git: prev_last_commit_tag = ${prev_last_commit_tag}"
