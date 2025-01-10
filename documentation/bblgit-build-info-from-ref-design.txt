@@ -31,6 +31,16 @@
     # bdm: BUILD_TAG_PREFIX: git-repo/bdm-build.conf
 
 
+## vars related, sample in an array
+#arr_configs_bblgit_check_ref=(
+#    "[${conf_section}]"
+#    'BUILD_RELEASE='
+#    'BUILD_TAG_PREFIX='
+#    'arr_GIT_TAG_NAME_SEPARATORS=( "/" "-" )'
+#    'GIT_TAG_NAME_SEPARATORS_MIN='
+#    'GIT_TAG_NAME_SEPARATORS_MAX='
+#)
+
 
 ## DEPRECATED ## initial Logic scheme:
 ## if build_release_supplied defined;
