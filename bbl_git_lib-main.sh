@@ -191,7 +191,7 @@ fn_git_ask_for_tagname() {
 
 fn_bblgit_tag_check() {
     tag_name="$1"
-    debug "${FUNCNAME[0]}: Starting tag chack, tag_name: ${tag_name}"
+    debug "${FUNCNAME[0]}: Starting tag check, tag_name: ${tag_name}"
     # build_tag_prefix_supplied=berb
     arr_tag_field_seps=( '/' ) # Allowed tag seps list
     tag_field_seps_min="2" # Min release/version
@@ -392,7 +392,7 @@ fn_bblgit_build_version_info_analyze_ref() {
     arr_branch_field_seps=( '-' '_' ) # Allowed branch seps list
     for branch_field_sep in ${arr_tag_field_seps[@]}; do
         if [ -n "$(echo "${build_branch}" | grep "${branch_field_sep}")" ]; then
-            debug "bbl-git: separator \"${branch_field_sep}\" foung in the current branch name"
+            debug "bbl-git: separator \"${branch_field_sep}\" found in the current branch name"
             break
         fi
     done
