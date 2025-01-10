@@ -396,6 +396,10 @@ fn_bblgit_build_version_info_analyze_ref() {
             break
         fi
     done
+    ## Vars for build_git_changelog
+    build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
+    # AQUI
+    ## Create version comment for Droidian build tools integration
     branch_version_comment=$(echo ${build_branch} | sed "s|\${branch_field_sep}|\.|g")
     branch_version_comment=$(echo "${build_branch}")
 
@@ -457,7 +461,7 @@ fn_bblgit_changelog_build() {
     changelog_builder_email=$(git config --global user.email)
     ## Prepare changelog
     if [ -f "${changelog_git_relpath_filename}" ]; then
-	rm "${changelog_git_relpath_filename}"
+        rm "${changelog_git_relpath_filename}"
     fi
     touch "${changelog_git_relpath_filename}"
     ## Get commit_id short=%h author=%an author_mail=%ae committer=%cn 
@@ -475,8 +479,8 @@ fn_bblgit_changelog_build() {
     date_full=$(date +"%a, %d %b %Y %H:%M:%S %z")
     debug "bbl-git: date_full = ${date_full}"
     date_short=$(date +%Y%m%d%H%M%S)
-    pkg_version_git=$(echo "${tag_version}+git${date_short}.${last_commit_id}.${tag_release}")
-    echo "${pkg_name} (${pkg_version_git}) ${tag_release}; urgency=medium" \
+    pkg_version_git=$(echo "${tag_version}+git${date_short}.${build_tag_commit_id_short}.${build_release}")
+    echo "${pkg_name} (${pkg_version_git}) ${build_release}; urgency=medium" \
 	> "${changelog_git_relpath_filename}"
     echo >> "${changelog_git_relpath_filename}"
     debug "bbl-git: prev_last_commit_tag = ${prev_last_commit_tag}"
