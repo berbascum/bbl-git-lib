@@ -223,6 +223,7 @@ fn_bblgit_tag_check() {
         ## Check for the min fields count
         if [ "${#arr_tag_fields[@]}" -ge "${tag_fields_min}" ]; then
             tag_fields_count="${#arr_tag_fields[@]}"
+            tag_field_sep_found=${tag_field_sep}
             debug "bbl-git: The tag name has the min fields count: \"${tag_fields_min}\""
             break
         elif [ "${#arr_tag_fields[@]}" -lt "${tag_fields_min}" ]; then
@@ -396,9 +397,6 @@ fn_bblgit_build_version_info_analyze_ref() {
             break
         fi
     done
-    ## Vars for build_git_changelog
-    build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
-    # AQUI
     ## Create version comment for Droidian build tools integration
     branch_version_comment=$(echo ${build_branch} | sed "s|\${branch_field_sep}|\.|g")
     branch_version_comment=$(echo "${build_branch}")
@@ -406,6 +404,7 @@ fn_bblgit_build_version_info_analyze_ref() {
     info "bbl-git: branch_version_comment: ${branch_version_comment}"
     build_version_comment="${branch_version_comment}"."${build_release}"
     info "bbl-git: build_version_comment: ${build_version_comment}"
+
 
 
 << "VARS_UNUSED_BUT_MIGHT_BE_USEFUL_FROM_OLD_CHECK_METHOD"
@@ -456,36 +455,180 @@ fn_bblgit_create_tag() {
 }
 
 fn_bblgit_changelog_build() {
-    changelog_git_relpath_filename="debian/changelog"
-    changelog_builder_user=$(git config --global user.name)
-    changelog_builder_email=$(git config --global user.email)
+    info "${FUNCNAME[0]}: Generating a debian formatted changelog file from git log..."
+    ## Header:
+       ## changelog_version_git:
+          ## package_name: from control
+          ## tag_ch_version
+          ## tag_ch_commit_date_short
+          ## tag_ch_commit_id_short
+          ## build_version_comment
+    ## Commits:
+       ## comm_ch_author
+            ## comm_ch_id_short
+            ## Comment
+    ## Footer:
+       ## packager name: from user's git config
+       ## packaging date: date_now_long
+
     ## Prepare changelog
-    if [ -f "${changelog_git_relpath_filename}" ]; then
-        rm "${changelog_git_relpath_filename}"
-    fi
+    changelog_git_relpath_filename="debian/changelog"
+#    [ -f "${changelog_git_relpath_filename}" ] \
+        rm -v "${changelog_git_relpath_filename}"
     touch "${changelog_git_relpath_filename}"
-    ## Get commit_id short=%h author=%an author_mail=%ae committer=%cn 
-    ## committer_mail=%ce date_RFC2822=%aD date_ISO-8601-like=%ai \
-    ## header=%s(need to be the last)
-    info "bbl-git: Generating a debian formatted changelog file from git log..."
-    ## The locale en_US.utf8 should be ensured to avoid format errors in changelog
+
+    ## The locale en_US.utf8 should be ensured
+    ## to avoid format errors in changelog
     en_us_locale=$(locale -a | grep "en_US.utf8")
     if [ -z "${en_us_locale}" ]; then
-	PAUSE "bbl-git: Gen en_US.utf8 locale is needed, the sudo password will be needed!"
+        PAUSE "bbl-git: Gen en_US.utf8 locale is needed, the sudo password will be needed!"
         ${SUDO} sed -i 's/^# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/g' /etc/locale.gen
-	${SUDO}  locale-gen && ${SUDO} update-locale
+        ${SUDO}  locale-gen && ${SUDO} update-locale
     fi
     export LC_TIME=en_US.utf8
-    date_full=$(date +"%a, %d %b %Y %H:%M:%S %z")
-    debug "bbl-git: date_full = ${date_full}"
-    date_short=$(date +%Y%m%d%H%M%S)
-    pkg_version_git=$(echo "${tag_version}+git${date_short}.${build_tag_commit_id_short}.${build_release}")
-    echo "${pkg_name} (${pkg_version_git}) ${build_release}; urgency=medium" \
-	> "${changelog_git_relpath_filename}"
-    echo >> "${changelog_git_relpath_filename}"
-    debug "bbl-git: prev_last_commit_tag = ${prev_last_commit_tag}"
-    debug "bbl-git: last_commit_tag = ${last_commit_tag}"
-    [ -d "commits_tmpdir" ] ||  mkdir -v "commits_tmpdir"
+
+    ## Put all release tags in an array
+    arr_tags_build_release=()
+    for tag in $(git tag --sort=-creatordate | grep "${build_release}"); do
+        arr_tags_build_release+=( "${tag}" )
+    done
+    ## Create the changelog
+    date_now_short=$(date +%Y%m%d%H%M%S)
+    date_now_long=$(date +"%a, %d %b %Y %H:%M:%S %z")
+    packager_name=$(git config --global user.name)
+    packager_email=$(git config --global user.email)
+    commit_initial=$(git rev-list --max-parents=0 --abbrev-commit HEAD)
+
+    #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
+    ## TAGS INFO
+    arr_comm_patterns_exclude=(
+        'Build release:'
+        '(gitignore)'
+        'Increase version strings'
+        '(pkg_rootfs)'
+    )
+
+    tags_found_count="${#arr_tags_build_release[@]}"
+    tags_processed_count="1"
+    for tag in ${arr_tags_build_release[@]}; do
+        ## Collect required info for each tag
+        tag_ch_current=${tag}
+        tag_ch_previous=${arr_tags_build_release["${tags_processed_count}"]}
+        tag_ch_version=$(echo ${tag} | awk -F"${tag_field_sep_found}" '{print $NF}')
+        tag_ch_commit_id_short=$(git rev-parse --short ${tag})
+        tag_ch_commit_date_full=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%a, %d %b %Y %H:%M:%S %z")
+        tag_ch_commit_date_short=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%Y%m%d%H%M%S")
+        changelog_version_git=$(echo "${tag_ch_version}+git${tag_ch_commit_date_short}.${tag_ch_commit_id_short}.${build_version_comment}")
+        ## TAGS: USER INFO
+        #commiter_name=$(git show ${tag_commit_id_short} --pretty=format:"%cn" -s)
+        #commiter_email=$(git show ${tag_commit_id_short} --pretty=format:"%ce" -s)
+        #comm_ch_author=$(git show ${tag_commit_id_short} --pretty=format:"%an" -s)
+        #author_email=$(git show ${tag_commit_id_short} --pretty=format:"%ae" -s)
+
+
+        ## Use a diferent version for the first tag
+        if [ "${tag}" != "${build_tag}" ]; then
+            echo >> "${changelog_git_relpath_filename}"
+        fi
+        ## Write the current tag version header
+        echo "${pkg_name} (${changelog_version_git}) ${build_release}; urgency=medium" \
+	        >> "${changelog_git_relpath_filename}"
+        echo >> "${changelog_git_relpath_filename}"
+
+        ## When count the first tag, set
+        ## tag_previous = initial commit d
+        if [ "${tag_previous}" == "" ]; then
+            tag_previous="${commit_initial}"
+        fi
+        debug "${FUNCNAME[0]}: tag_ch_current: ${tag_ch_current}"
+        debug "${FUNCNAME[0]}: tag_ch_previous: ${tag_ch_previous}"
+        debug "${FUNCNAME[0]}: tags_processed_count: ${tags_processed_count}"
+        #pause "Pausa abans d'entrar al for de commits"
+        ## Commits part
+        arr_authors=()
+        for comm_ch_author in $(git log \
+          "${tag_ch_previous}".."${tag_ch_current}" \
+            --pretty=format:"%an" \
+            | sort -u)
+        do
+
+            echo "  [ ${comm_ch_author} ]" >> "${changelog_git_relpath_filename}"
+            #arr_authors+=( "${comm_ch_author}" )
+
+#<< "DESACTIVA"            
+            git log \
+                --pretty=format:"- %ad, %an :  * %h %s" \
+                --date=format:'%Y%m%d%H%M%S' \
+                
+                | grep ", ${comm_ch_author} :" \
+                | sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
+                | while IFS= read -r line
+                do
+                    echo "$line" >> "${changelog_git_relpath_filename}"
+                done
+                #read -p "Pausa sortint de for 1 commits"
+                #FILTRE ARRAY | grep -v -E "$(IFS=\|; echo "${arr_comm_patterns_exclude[*]}")" \
+#DESACTIVA
+        done
+        #read -p "ACABAT for 1 authors"
+
+        ## Write the version footer
+        echo >> "${changelog_git_relpath_filename}"
+        echo  " -- ${packager_name} <${packager_email}>  ${date_now_long}" \
+            >> "${changelog_git_relpath_filename}"
+        ## Increment the array position
+        tags_processed_count=$((tags_processed_count + 1))
+    done
+
+
+## RECORDA, FILTRE DE MISSATGES DE COMMIT
+#git log "${tag_ch_previous}".."${tag_ch_current}" --oneline | sed "s|(tag: ${tag_ch_current})||g' | grep -v -e 'Build release:' -e '(gitignore)' -e 'Increase version strings' -e '(pkg_rootfs)" \
+#            >> "${changelog_git_relpath_filename}"
+    PAUSE "bbl-git: Finalized changelog file build from git log..."
+
+            #| sed 's/^- [0-9]\{14\}, berbascum : //' \
+
+
+            #pause "Pausa, comm_ch_author val ${comm_ch_author}"
+
+         #git log "${tag_ch_previous}".."${tag_ch_current}" --pretty=format:"%an %ad %B" --date=format:"%Y%m%d%H%M%S" | awk '{print $1}' | while read line; do
+#                pause "Pausa line: $line"
+#            done
+
+# Executar git log amb el format desitjat
+
+
+        # Executar git log amb el format desitjat
+
+
+#| awk '{$1=""; print substr($0,2)}'
+    # Imprimir cada línia
+    #| sed 's/berbascum//g' | sed 's/^[^ ]* //'
+    #| awk '{print $1}'
+    #| cut -d' ' -f1-
+    #awk '{print $1}'
+
+
+
+             #   pause "commit_ch: ${commit_ch}"
+            #--date=format:"%Y%m%d%H%M%S"
+            # | grep "^${comm_ch_author} "
+              #| sort -k2,2r
+          #| sed 's/^${comm_ch_author} //g' | sed 's/^[0-9]* //' >> "${changelog_git_relpath_filename}"
+#    pause "Pausa comanda que processa commits"
+          #git log --pretty=format:"%an %ad %B"  --date=format:"%Y%m%d%H%M%S" | grep "^${comm_ch_author} "| sort -k2,2r   | sed 's/^${comm_ch_author} //g' | sed 's/^[0-9]* //' >> "${changelog_git_relpath_filename}"
+                #| cut -d' ' -f2-
+                #| sed 's/^[^ ]* //'
+
+
+
+# git log --pretty=format:"%an %h %ad" --date=short | sort -k1,1 -k3,3r
+
+
+
+    
+
+<< "DISABLE"
     git log --pretty=format:"%h %an %ae %cn %ce %cD %ci %s" "${prev_last_commit_id}"..."${last_commit_id}" > commits_tmpdir/export.txt
     debug "bbl-git: File commits_tmpdir/export.txt created"
     while read commit; do
@@ -521,7 +664,8 @@ fn_bblgit_changelog_build() {
     echo  " -- ${changelog_builder_user} <${changelog_builder_email}>  ${date_full}" \
         >> "${changelog_git_relpath_filename}"
     rm -r commits_tmpdir
-    INFO "bbl-git: Finalized changelog file build from git log..."
+DISABLE
+
 }
 
 fn_bblgit_commit_changes() {
