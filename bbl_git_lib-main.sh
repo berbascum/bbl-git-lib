@@ -489,15 +489,55 @@ fn_bblgit_changelog_build() {
 
     ## Put all release tags in an array
     arr_tags_build_release=()
+#    arr_tags_rang_build_release=()
+    arr_tag_ranges=()
     for tag in $(git tag --sort=-creatordate | grep "${build_release}"); do
+        ## FIRST ITER: we dont have both
+        ## start(older tag) and end(newer tag)
+        #echo "tag_start=${tag_start}"
+        #echo "tag_end=${tag_end}"
+        #pause "Start for tag iter" 
+        if [ -n "${tag_start}" ] && [ -n "${tag_end}" ]; then
+            ## Iter > 2, both vars stsrts defined
+            tag_start="${tag_end}"
+            tag_end="${tag}"
+        elif [ -z "${tag_start}" ] && [ -z "${tag_end}" ]; then 
+            ## First iter: nothing defined
+            ## Current tag as start for 2 iter
+            tag_start="${tag}"
+            continue
+        elif [ -n "${tag_start}" ] && [ -z "${tag_end}" ]; then 
+            ## Second iter: only start defined
+            ## Current tag as end
+            ## Range can setted now
+            tag_end="${tag}"
+        fi
+        arr_tag_ranges+=( "${tag_start}..${tag_end}" )
+#    tags_found_count="${#arr_tags_build_release[@]}"
+#        tags_processed_count="1"
         arr_tags_build_release+=( "${tag}" )
-    done
+#        arr_tags_rang=()
+    done # finish for tag
+    ## last tag_start is last tag found
+    tag_last=${tag_start}
+    ## When initial commit not tagged,
+    ## we need to define an extra range to get
+    ## commits between first tag and ini commit
+    commit_initial_id_short=$(git rev-list --max-parents=0 --abbrev-commit HEAD)
+    commit_initial_is_tagged=$(git tag --points-at ${commit_initial})
+    if [ -z "${commit_initial_is_tagged}" ]; then
+        arr_tag_ranges+=( "${tag_last}..${commit_initial_id_short}" )
+    fi
+    #printf '%s\n' ${arr_tag_ranges[@]}
+    #PAUSE "Above this line: printf arr_tag_ranges"
+
+
+
     ## Create the changelog
     date_now_short=$(date +%Y%m%d%H%M%S)
     date_now_long=$(date +"%a, %d %b %Y %H:%M:%S %z")
     packager_name=$(git config --global user.name)
     packager_email=$(git config --global user.email)
-    commit_initial=$(git rev-list --max-parents=0 --abbrev-commit HEAD)
 
     #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
     ## TAGS INFO
@@ -509,10 +549,7 @@ fn_bblgit_changelog_build() {
     )
     
     commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude[*]}")"
-    echo "commit_pattern_exclude${commit_pattern_exclude}"
-    pause "Pausa print var"
-    tags_found_count="${#arr_tags_build_release[@]}"
-    tags_processed_count="1"
+    pause "commit_pattern_exclude${commit_pattern_exclude}"
 
     for tag in ${arr_tags_build_release[@]}; do
         ## Collect required info for each tag
