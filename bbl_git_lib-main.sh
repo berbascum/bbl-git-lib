@@ -587,7 +587,7 @@ fn_bblgit_changelog_build() {
         ## Get the tag range authors list
         arr_tag_range_authors=()
 
-        for author in $(git log ${tag_range} --pretty=format:\"%an\" | sort -u); do 
+        for author in $(git log ${tag_range} --pretty=format:"%an" | sort -u); do
             debug "author: ${author}"
             arr_tag_range_authors+=( "${author}" )
         done # de for authors 
@@ -601,7 +601,7 @@ exit
 
 
         debug "${FUNCNAME[0]}: Nou for authors llegint de l'array, seguim dins for tag range \"${tag_range}\""
-        for author_arr in ${arr_tag_range_authors[@]}; do 
+        for author_arr in ${arr_tag_range_authors[@]}; do
             echo "AUTHOR = ${author}"
             exit
 
