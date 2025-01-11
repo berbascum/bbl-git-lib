@@ -488,38 +488,55 @@ fn_bblgit_changelog_build() {
     export LC_TIME=en_US.utf8
 
     ## Put all release tags in an array
-    arr_tags_build_release=()
-#    arr_tags_rang_build_release=()
+    arr_tags_found=()
     arr_tag_ranges=()
+    tag_older=
+    tag_newer=
+    ## NOTICE: For by creation descending list
+    ## NOTICE: Filter by build_release
     for tag in $(git tag --sort=-creatordate | grep "${build_release}"); do
-        ## FIRST ITER: we dont have both
-        ## start(older tag) and end(newer tag)
-        #echo "tag_start=${tag_start}"
-        #echo "tag_end=${tag_end}"
-        #pause "Start for tag iter" 
-        if [ -n "${tag_start}" ] && [ -n "${tag_end}" ]; then
-            ## Iter > 2, both vars stsrts defined
-            tag_start="${tag_end}"
-            tag_end="${tag}"
-        elif [ -z "${tag_start}" ] && [ -z "${tag_end}" ]; then 
-            ## First iter: nothing defined
-            ## Current tag as start for 2 iter
-            tag_start="${tag}"
-            continue
-        elif [ -n "${tag_start}" ] && [ -z "${tag_end}" ]; then 
-            ## Second iter: only start defined
-            ## Current tag as end
-            ## Range can setted now
-            tag_end="${tag}"
+        if [ -n "${tag_newer}" ] && [ -n "${tag_older}" ]; then
+        ## Iter > 2, both vars defined
+            tag_older="${tag}"
+            tag_newer="${tag_previous}"
+            tag_previous="${tag}"
+        ## Range still not valid
+        elif [ -z "${tag_newer}" ] && [ -z "${tag_older}" ]; then 
+        ## First iter: nothing defined
+            tag_newer="${tag}"
+        elif [ -n "${tag_newer}" ] && [ -z "${tag_older}" ]; then 
+        ## Second iter: only older defined
+        ## Range is valid from now
+            tag_older="${tag}"
+            tag_previous="${tag}"
         fi
-        arr_tag_ranges+=( "${tag_start}..${tag_end}" )
-#    tags_found_count="${#arr_tags_build_release[@]}"
-#        tags_processed_count="1"
-        arr_tags_build_release+=( "${tag}" )
-#        arr_tags_rang=()
+        ## Only add range if both vars defined
+        if [ -n "${tag_older}" ] && [ -n "${tag_older}" ]; then
+            arr_tag_ranges+=( "${tag_older}..${tag_newer}" )
+        fi
+        debug "tag_newer=${tag_newer}"
+        debug "tag_previous=${tag_previous}"
+        debug "tag_older=${tag_older}"
+        debug "tag_rang=${tag_older}..${tag_newer}"
+        DEBUG "Final iteració for tag"
+        arr_tags_found+=( "${tag}" )
     done # finish for tag
-    ## last tag_start is last tag found
-    tag_last=${tag_start}
+
+    #tags_found_count="${#arr_tags_build_release[@]}"
+    tag_last=$(printf '%s\n' ${arr_tags_found[@]} | tail -n 1)
+    DEBUG "${FUNCNAME[0]}: tag_last: ${tag_last}"
+    printf '%s\n' ${arr_tags_found[@]}
+    DEBUG "Above: printf arr_tags_found"
+    printf '%s\n' ${arr_tag_ranges[@]}
+    DEBUG "Above: printf arr_tag_ranges"
+    ## The for returns two arrays:
+       # arr_tags_found
+       # arr_tag_ranges
+
+exit
+
+
+
     ## When initial commit not tagged,
     ## we need to define an extra range to get
     ## commits between first tag and ini commit
@@ -531,7 +548,8 @@ fn_bblgit_changelog_build() {
     #printf '%s\n' ${arr_tag_ranges[@]}
     #PAUSE "Above this line: printf arr_tag_ranges"
 
-
+    exit
+        # ARA tinc array amb llista de rangs
 
     ## Create the changelog
     date_now_short=$(date +%Y%m%d%H%M%S)
@@ -551,10 +569,10 @@ fn_bblgit_changelog_build() {
     commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude[*]}")"
     pause "commit_pattern_exclude${commit_pattern_exclude}"
 
-    for tag in ${arr_tags_build_release[@]}; do
+    for tag_range in ${arr_tag_ranges[@]}; do
         ## Collect required info for each tag
-        tag_ch_current=${tag}
-        tag_ch_previous=${arr_tags_build_release["${tags_processed_count}"]}
+#        tag_ch_current=${tag}
+#        tag_ch_previous=${arr_tags_build_release["${tags_processed_count}"]}
         tag_ch_version=$(echo ${tag} | awk -F"${tag_field_sep_found}" '{print $NF}')
         tag_ch_commit_id_short=$(git rev-parse --short ${tag})
         tag_ch_commit_date_full=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%a, %d %b %Y %H:%M:%S %z")
@@ -567,10 +585,10 @@ fn_bblgit_changelog_build() {
         #author_email=$(git show ${tag_commit_id_short} --pretty=format:"%ae" -s)
 
 
-        ## Use a diferent version for the first tag
-        if [ "${tag}" != "${build_tag}" ]; then
-            echo >> "${changelog_git_relpath_filename}"
-        fi
+        ## Use a diferent thing for first tag
+#        if [ "${tag}" != "${build_tag}" ]; then
+#            echo >> "${changelog_git_relpath_filename}"
+#        fi
         ## Write the current tag version header
         echo "${pkg_name} (${changelog_version_git}) ${build_release}; urgency=medium" \
 	        >> "${changelog_git_relpath_filename}"
@@ -578,40 +596,84 @@ fn_bblgit_changelog_build() {
 
         ## When count the first tag, set
         ## tag_previous = initial commit d
-        if [ "${tag_previous}" == "" ]; then
-            tag_previous="${commit_initial}"
-        fi
-        debug "${FUNCNAME[0]}: tag_ch_current: ${tag_ch_current}"
-        debug "${FUNCNAME[0]}: tag_ch_previous: ${tag_ch_previous}"
-        debug "${FUNCNAME[0]}: tags_processed_count: ${tags_processed_count}"
-        #pause "Pausa abans d'entrar al for de commits"
-        ## Commits part
-        arr_authors=()
-        for comm_ch_author in $(git log \
-          "${tag_ch_previous}".."${tag_ch_current}" \
-            --no-merges \
+#        if [ "${tag_previous}" == "" ]; then
+#            tag_previous="${commit_initial}"
+#        fi
+#        debug "${FUNCNAME[0]}: tag_ch_current: ${tag_ch_current}"
+#        debug "${FUNCNAME[0]}: tag_ch_previous: ${tag_ch_previous}"
+#        debug "${FUNCNAME[0]}: tags_processed_count: ${tags_processed_count}"
+        debug "${FUNCNAME[0]}: tags_range processed: ${tag_range}"
+
+        ## Get authors list from the tag range
+        arr_tag_range_authors=()
+        echo "git log ${tag_range} --pretty=format:%an | sort -u)"
+        git log ${tag_range} --pretty=format:%an | sort -u
+
+        read -p "Pausa: a dalt comanda obtenir authors"
+        for author in $(git log \
+          "${tag_range}" \
             --pretty=format:"%an" \
             | sort -u)
         do
+            arr_tag_range_authors+=( "${author}" )
+        done # de for authors 
+        debug "${FUNCNAME[0]}: Després de for authors: arr_tag_range_authors defined: ${tag_range[*]}"
+        pause "PRINT ARR AUTHORS: ${arr_tag_range_authors[@]}"
 
-            echo "  [ ${comm_ch_author} ]" >> "${changelog_git_relpath_filename}"
+
+
+        debug "${FUNCNAME[0]}: Nou for authors llegint de l'array, seguim dins for tag range \"${tag_range}\""
+        for author_arr in ${arr_tag_range_authors[@]}; do 
+            echo "AUTHOR = ${author}"
+            exit
+
+            args_gitlog=( "--pretty=format:'* %h %s'" )
+            args_gitlog+=( "${tag_range}" )
+            args_gitlog+=( "--author=${author}" )
+            PAUSE "${FUNCNAME[0]}: utilitzant la comanda: git log ${args_gitlog[@]} >> \"${changelog_git_relpath_filename}\""
+            git log "${args_gitlog[@]}" >> "${changelog_git_relpath_filename}"
+        done
+            pause "EXECUTAT GIT LOG COMMITS"
+
+
+
+
+
+
+
+    done # de for tag_ranges, ha d'anar al final, pero el tinc aqui per testing"
+        debug "${FUNCNAME[0]}: Després de for tag_ranges: arr_tag_range_authors defined: ${tag_range[*]}"
+vim "${changelog_git_relpath_filename}"
+
+        exit
+
+        echo "  [ ${comm_ch_author} ]" >> "${changelog_git_relpath_filename}"
             #arr_authors+=( "${comm_ch_author}" )
 
-#<< "DESACTIVA"            
-            git log "${tag_ch_previous}".."${tag_ch_current}" \
-                --pretty=format:"- %ad, %an :  * %h %s" \
-                --date=format:'%Y%m%d%H%M%S' \
-                | grep -v -E "${commit_pattern_exclude}" \
-                | grep ", ${comm_ch_author} :" \
-                | sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
-                | while IFS= read -r line
-                do
-                    echo "$line" >> "${changelog_git_relpath_filename}"
-                done
+
+
+
+
+
+
+
+
+
+
+
+                #| while IFS= read -r line
+                #do
+                #    echo "$line" >> "${changelog_git_relpath_filename}"
+                #done
                 #read -p "Pausa sortint de for 1 commits"
+
+                #| grep -v -E "${commit_pattern_exclude}" \
                 #FILTRE ARRAY | grep -v -E "$(IFS=\|; echo "${arr_comm_patterns_exclude[*]}")" \
+                #--pretty=format:"- %ad, %an :  * %h %s" \
+                #--date=format:'%Y%m%d%H%M%S' \
+                #| sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
+                #| sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
 #DESACTIVA
-        done
         #read -p "ACABAT for 1 authors"
 
         ## Write the version footer
@@ -620,7 +682,7 @@ fn_bblgit_changelog_build() {
             >> "${changelog_git_relpath_filename}"
         ## Increment the array position
         tags_processed_count=$((tags_processed_count + 1))
-    done
+#    done # de for tag_ranges, el poso més a dalt pertesting
 
 
 ## RECORDA, FILTRE DE MISSATGES DE COMMIT
