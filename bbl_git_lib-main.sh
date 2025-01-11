@@ -501,15 +501,19 @@ fn_bblgit_changelog_build() {
 
     #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
     ## TAGS INFO
-    arr_comm_patterns_exclude=(
+    arr_commit_patterns_exclude=(
         'Build release:'
         '(gitignore)'
         'Increase version strings'
         '(pkg_rootfs)'
     )
-
+    
+    commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude[*]}")"
+    echo "commit_pattern_exclude${commit_pattern_exclude}"
+    pause "Pausa print var"
     tags_found_count="${#arr_tags_build_release[@]}"
     tags_processed_count="1"
+
     for tag in ${arr_tags_build_release[@]}; do
         ## Collect required info for each tag
         tag_ch_current=${tag}
@@ -548,6 +552,7 @@ fn_bblgit_changelog_build() {
         arr_authors=()
         for comm_ch_author in $(git log \
           "${tag_ch_previous}".."${tag_ch_current}" \
+            --no-merges \
             --pretty=format:"%an" \
             | sort -u)
         do
@@ -556,10 +561,10 @@ fn_bblgit_changelog_build() {
             #arr_authors+=( "${comm_ch_author}" )
 
 #<< "DESACTIVA"            
-            git log \
+            git log "${tag_ch_previous}".."${tag_ch_current}" \
                 --pretty=format:"- %ad, %an :  * %h %s" \
                 --date=format:'%Y%m%d%H%M%S' \
-                
+                | grep -v -E "${commit_pattern_exclude}" \
                 | grep ", ${comm_ch_author} :" \
                 | sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
                 | while IFS= read -r line
