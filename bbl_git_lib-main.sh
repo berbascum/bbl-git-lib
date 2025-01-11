@@ -521,35 +521,33 @@ fn_bblgit_changelog_build() {
         DEBUG "Final iteració for tag"
         arr_tags_found+=( "${tag}" )
     done # finish for tag
-
+    ## The for returns two arrays:
+       # arr_tags_found
+       # arr_tag_ranges
     #tags_found_count="${#arr_tags_build_release[@]}"
-    tag_last=$(printf '%s\n' ${arr_tags_found[@]} | tail -n 1)
-    DEBUG "${FUNCNAME[0]}: tag_last: ${tag_last}"
     printf '%s\n' ${arr_tags_found[@]}
     DEBUG "Above: printf arr_tags_found"
     printf '%s\n' ${arr_tag_ranges[@]}
     DEBUG "Above: printf arr_tag_ranges"
-    ## The for returns two arrays:
-       # arr_tags_found
-       # arr_tag_ranges
 
-exit
-
-
-
-    ## When initial commit not tagged,
+    ## When the initial commit is not tagged,
     ## we need to define an extra range to get
-    ## commits between first tag and ini commit
+    ## commits between older tag and ini commit
     commit_initial_id_short=$(git rev-list --max-parents=0 --abbrev-commit HEAD)
     commit_initial_is_tagged=$(git tag --points-at ${commit_initial})
     if [ -z "${commit_initial_is_tagged}" ]; then
+        tag_last=$(printf '%s\n' \
+            ${arr_tags_found[@]} | tail -n 1)
+        DEBUG "${FUNCNAME[0]}: initial commin untagged:"
+        debug "Adding tag_last..initial_commit_id range: \"${tag_last}..${commit_initial_id_short}\""
         arr_tag_ranges+=( "${tag_last}..${commit_initial_id_short}" )
+        printf '%s\n' ${arr_tag_ranges[@]}
+        DEBUG "Above: printf arr_tag_ranges including initial commit"
     fi
-    #printf '%s\n' ${arr_tag_ranges[@]}
-    #PAUSE "Above this line: printf arr_tag_ranges"
 
-    exit
-        # ARA tinc array amb llista de rangs
+    # ARA tinc correcte:
+      # arr_tag_ranges
+      # arr_tags_found
 
     ## Create the changelog
     date_now_short=$(date +%Y%m%d%H%M%S)
@@ -557,68 +555,48 @@ exit
     packager_name=$(git config --global user.name)
     packager_email=$(git config --global user.email)
 
-    #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
-    ## TAGS INFO
     arr_commit_patterns_exclude=(
         'Build release:'
         '(gitignore)'
         'Increase version strings'
         '(pkg_rootfs)'
     )
-    
     commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude[*]}")"
-    pause "commit_pattern_exclude${commit_pattern_exclude}"
+    PAUSE "commit_pattern_exclude: ${commit_pattern_exclude}"
 
     for tag_range in ${arr_tag_ranges[@]}; do
         ## Collect required info for each tag
-#        tag_ch_current=${tag}
-#        tag_ch_previous=${arr_tags_build_release["${tags_processed_count}"]}
+        #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
         tag_ch_version=$(echo ${tag} | awk -F"${tag_field_sep_found}" '{print $NF}')
         tag_ch_commit_id_short=$(git rev-parse --short ${tag})
         tag_ch_commit_date_full=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%a, %d %b %Y %H:%M:%S %z")
         tag_ch_commit_date_short=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%Y%m%d%H%M%S")
         changelog_version_git=$(echo "${tag_ch_version}+git${tag_ch_commit_date_short}.${tag_ch_commit_id_short}.${build_version_comment}")
-        ## TAGS: USER INFO
-        #commiter_name=$(git show ${tag_commit_id_short} --pretty=format:"%cn" -s)
-        #commiter_email=$(git show ${tag_commit_id_short} --pretty=format:"%ce" -s)
-        #comm_ch_author=$(git show ${tag_commit_id_short} --pretty=format:"%an" -s)
-        #author_email=$(git show ${tag_commit_id_short} --pretty=format:"%ae" -s)
 
-
-        ## Use a diferent thing for first tag
-#        if [ "${tag}" != "${build_tag}" ]; then
-#            echo >> "${changelog_git_relpath_filename}"
-#        fi
+        ## Do different things for first range
+        if echo "${tag_tange}" \
+        | grep "${build_tag}"; then
+            echo >> "${changelog_git_relpath_filename}"
+        fi
         ## Write the current tag version header
         echo "${pkg_name} (${changelog_version_git}) ${build_release}; urgency=medium" \
 	        >> "${changelog_git_relpath_filename}"
         echo >> "${changelog_git_relpath_filename}"
+        debug "${FUNCNAME[0]}: Writed version header for tag_range: \"${tag_range}\""
 
-        ## When count the first tag, set
-        ## tag_previous = initial commit d
-#        if [ "${tag_previous}" == "" ]; then
-#            tag_previous="${commit_initial}"
-#        fi
-#        debug "${FUNCNAME[0]}: tag_ch_current: ${tag_ch_current}"
-#        debug "${FUNCNAME[0]}: tag_ch_previous: ${tag_ch_previous}"
-#        debug "${FUNCNAME[0]}: tags_processed_count: ${tags_processed_count}"
-        debug "${FUNCNAME[0]}: tags_range processed: ${tag_range}"
-
-        ## Get authors list from the tag range
+        ## Get the tag range authors list
         arr_tag_range_authors=()
-        echo "git log ${tag_range} --pretty=format:%an | sort -u)"
-        git log ${tag_range} --pretty=format:%an | sort -u
 
-        read -p "Pausa: a dalt comanda obtenir authors"
-        for author in $(git log \
-          "${tag_range}" \
-            --pretty=format:"%an" \
-            | sort -u)
-        do
+        for author in $(git log ${tag_range} --pretty=format:\"%an\" | sort -u); do 
+            debug "author: ${author}"
             arr_tag_range_authors+=( "${author}" )
         done # de for authors 
         debug "${FUNCNAME[0]}: Després de for authors: arr_tag_range_authors defined: ${tag_range[*]}"
         pause "PRINT ARR AUTHORS: ${arr_tag_range_authors[@]}"
+
+
+
+exit
 
 
 
@@ -651,6 +629,12 @@ vim "${changelog_git_relpath_filename}"
             #arr_authors+=( "${comm_ch_author}" )
 
 
+
+        ## TAGS: USER INFO
+        #commiter_name=$(git show ${tag_commit_id_short} --pretty=format:"%cn" -s)
+        #commiter_email=$(git show ${tag_commit_id_short} --pretty=format:"%ce" -s)
+        #comm_ch_author=$(git show ${tag_commit_id_short} --pretty=format:"%an" -s)
+        #author_email=$(git show ${tag_commit_id_short} --pretty=format:"%ae" -s)
 
 
 
