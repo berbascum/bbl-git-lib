@@ -545,7 +545,7 @@ fn_bblgit_changelog_build() {
         DEBUG "Above: printf arr_tag_ranges including initial commit"
     fi
 
-    # ARA tinc correcte:
+    # Constructed and working:
       # arr_tag_ranges
       # arr_tags_found
 
@@ -618,14 +618,17 @@ fn_bblgit_changelog_build() {
 
     # vim "${changelog_git_relpath_filename}"
 
-    PAUSE "commit_pattern_exclude: ${commit_pattern_exclude}"
+    info "${FUNCNAME[0]}: commit_pattern_exclude: ${commit_pattern_exclude}"
 
-    # ARA tinc correcte:
+    # Constructed and working:
+      # arr_tag_ranges
+      # arr_tags_found
       # arr_tag_ranges
       # arr_tags_found
       # arr_tag_range_authors
+      # commit_pattern_exclude
 
-    PAUSE "bbl-git: Finalized changelog file build from git log..."
+    info "bbl-git: Finalized changelog file build from git log..."
 }
 
 fn_bblgit_commit_changes() {
