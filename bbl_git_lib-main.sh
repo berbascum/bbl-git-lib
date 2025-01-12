@@ -631,17 +631,43 @@ fn_bblgit_changelog_build() {
     info "bbl-git: Finalized changelog file build from git log..."
 }
 
+fn_bblgit_workdir_file_edited_ckeck() {
+    file_edited="$1"
+    file_edited_status=$(git status | grep "${file_edited}")
+    if [ -z "${file_edited_status}" ]; then
+        warn "${FUNCNAME[0]}: Something went wrong when trying to commit" \
+        PAUSE "${FUNCNAME[0]}: ERROR: The specified file \"${file_edited}\" is not in the git status"
+    else
+        debug "${FUNCNAME[0]}: The specified file \"${file_edited}\" was found as edited"
+    fi
+
+}
+
 fn_bblgit_commit_changes() {
     ## TODO: 
-    #file_updated="$1"
     commit_msg="$1"
-    #file_updated_status=$(git status | grep "${file_updated}")
-    #[ -z "${file_updated}" ] && error "Some went wrong when trying to commit \"${file_updated}\""
-    #info "Committing the updated \"${file_updated}\"..."
-    git status
-    ASK "bbl-git: The above files and dirs will be added and commited. Want to continue? [ y|n ]: "
-    [ "${answer}" != "y" ] && abort "bbl-git: Aborted by user!"
-    git add -A
+    debug "${FUNCNAME[0]}: Starting checks for committing edited package files by the bdm build script "
+
+    ## Determine if sign can be used by the host
     fn_bblgit_check_if_can_sign
-    eval "${GIT_COMMIT_CMD}"
+    ## Ckeck if supplied finenames was really edited
+    for file_edited in ${arr_pkg_files_edited[@]}; do
+        fn_bblgit_workdir_file_edited_ckeck "${file_edited}"
+    done
+    ## If OK: fn_bblgit_workdir_file_edited_ckeck
+    debug "${FUNCNAME[0]}: All the specified files was found as edited: \"${arr_pkg_files_edited[*]}\""
+    ## Now the workdir should be clean, check again
+    fn_bblgit_workdir_status_check
+
+## TODO: Create --batch mode for bdm
+    info "${FUNCNAME[0]}: Committing the updated files: \"${arr_pkg_files_edited[*]}\"..."
+    info "${FUNCNAME[0]}: tag_version defined: ${tag_version}"
+    info "${FUNCNAME[0]}: tag_release defined: ${tag_release}"
+    ASK "Want continue? [ y | any ]: "
+    case "${answer}" in
+        y)
+            git add -A
+            eval "${GIT_COMMIT_CMD}"
+            ;;
+    esac
 }
