@@ -1,0 +1,38 @@
+<< "DISABLE_OLD_METHOD"
+    git log --pretty=format:"%h %an %ae %cn %ce %cD %ci %s" "${prev_last_commit_id}"..."${last_commit_id}" > commits_tmpdir/export.txt
+    debug "bbl-git: File commits_tmpdir/export.txt created"
+    while read commit; do
+	commit_id_short=$(echo ${commit} | awk '{print $1}')
+	author_name=$(echo ${commit} | awk '{print $2}') ## %an
+	author_email=$(echo ${commit} | awk '{print $3}') ## %an
+	commiter_name=$(echo ${commit} | awk '{print $4}')
+	debug2 "commiter_name =${commiter_name}"
+	commiter_email=$(echo ${commit} | awk '{print $5}')
+        #COMMITTER_DATE_RFC2822=$(echo ${commit} \
+	    ##| awk '{print $6 " " $7 " "  $8 " "  $9 " "  $10 " " $11}')
+        #COMMITTER_DATE_COMPACTED=$(echo ${commit} | awk '{print $12 $13}' \
+	    ## | tr  -d "-" | tr -d ":")
+	commit_header=$(echo ${commit} | awk '{ for (i=15; i<=NF; i++) printf $i " " }')
+	debug2 "bbl-git: Commit header filtered = ${commit_header}"
+	commit_body=$(git show --format=%b ${commit_id_short} | awk 'NR==1,/diff --git/' \
+	    | grep --invert-match 'diff --git' | egrep '^[[:blank:]]*[^[:blank:]#]')
+        ## Put the commits in a file for each commiter
+	echo "  * (${commit_id_short}) ${commit_header}" \
+	    >> commits_tmpdir/${commiter_name}
+	if [ -n "${commit_body}" ]; then
+	    echo "              ${commit_body}" >> commits_tmpdir/${commiter_name}
+	fi
+    done <commits_tmpdir/export.txt
+    rm commits_tmpdir/export.txt
+    ## Cat every commiteter commits to the changelog file
+    for commiter_file in $(ls commits_tmpdir); do
+	echo "  [${commiter_name}]" >> "${changelog_git_relpath_filename}"
+        cat commits_tmpdir/${commiter_name} >> "${changelog_git_relpath_filename}"
+	echo >> "${changelog_git_relpath_filename}"
+    done
+    ## Committer of changes
+    echo  " -- ${changelog_builder_user} <${changelog_builder_email}>  ${date_full}" \
+        >> "${changelog_git_relpath_filename}"
+    rm -r commits_tmpdir
+DISABLE_OLD_METHOD
+
