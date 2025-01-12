@@ -521,7 +521,7 @@ fn_bblgit_changelog_build() {
         DEBUG "Final iteració for tag"
         arr_tags_found+=( "${tag}" )
     done # finish for tag
-    ## The for returns two arrays:
+    ## Above for returns two arrays:
        # arr_tags_found
        # arr_tag_ranges
     #tags_found_count="${#arr_tags_build_release[@]}"
@@ -540,7 +540,7 @@ fn_bblgit_changelog_build() {
             ${arr_tags_found[@]} | tail -n 1)
         DEBUG "${FUNCNAME[0]}: initial commin untagged:"
         debug "Adding tag_last..initial_commit_id range: \"${tag_last}..${commit_initial_id_short}\""
-        arr_tag_ranges+=( "${tag_last}..${commit_initial_id_short}" )
+        arr_tag_ranges+=( ${commit_initial_id_short}.."${tag_last}" )
         printf '%s\n' ${arr_tag_ranges[@]}
         DEBUG "Above: printf arr_tag_ranges including initial commit"
     fi
@@ -554,28 +554,37 @@ fn_bblgit_changelog_build() {
     date_now_long=$(date +"%a, %d %b %Y %H:%M:%S %z")
     packager_name=$(git config --global user.name)
     packager_email=$(git config --global user.email)
+    ## remove from the log lines with patterns:
+    commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude_lines[*]}")"
 
-    arr_commit_patterns_exclude=(
-        'Build release:'
-        '(gitignore)'
-        'Increase version strings'
-        '(pkg_rootfs)'
-    )
-    commit_pattern_exclude="$(IFS=\|; echo "${arr_commit_patterns_exclude[*]}")"
-    PAUSE "commit_pattern_exclude: ${commit_pattern_exclude}"
-
+    arr_tag_range_authors=()
     for tag_range in ${arr_tag_ranges[@]}; do
         ## Collect required info for each tag
         #build_tag_commit_id_short=$(git show ${build_tag} --pretty=format:"%h" -s)
+        ## 2nd tag of the range, is the newer:
+        tag=$(echo ${tag_range} | awk -F'[.]{2}' '{print $2}')
         tag_ch_version=$(echo ${tag} | awk -F"${tag_field_sep_found}" '{print $NF}')
         tag_ch_commit_id_short=$(git rev-parse --short ${tag})
-        tag_ch_commit_date_full=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%a, %d %b %Y %H:%M:%S %z")
-        tag_ch_commit_date_short=$(date -d "$(git show ${tag_commit_id_short} --pretty=format:"%cI" -s)" +"%Y%m%d%H%M%S")
+        tag_ch_commit_date_full=$(date -d \
+            "$(git show --abbrev-commit \
+            ${tag_ch_commit_id_short} \
+            --pretty=format:"%cI" -s)" \
+            +"%a, %d %b %Y %H:%M:%S %z")
+        tag_ch_commit_date_short=$(date -d \
+            "$(git show --abbrev-commit \
+            ${tag_ch_commit_id_short} \
+            --pretty=format:"%cI" -s)" \
+            +"%Y%m%d%H%M%S")
+        debug "tag_ch_commit_date_full = ${tag_ch_commit_date_full}"
+        debug "tag_ch_commit_date_short = ${tag_ch_commit_date_short}"
         changelog_version_git=$(echo "${tag_ch_version}+git${tag_ch_commit_date_short}.${tag_ch_commit_id_short}.${build_version_comment}")
 
         ## Do different things for first range
-        if echo "${tag_tange}" \
+        if echo "${tag_range}" \
         | grep "${build_tag}"; then
+            debug "${FUNCNAME[0]}: First tag_range loop iter, doing nothing"
+        else
+            debug "${FUNCNAME[0]}: Not the first tag_range loop iter, adding empty line before the version header..."
             echo >> "${changelog_git_relpath_filename}"
         fi
         ## Write the current tag version header
@@ -585,178 +594,42 @@ fn_bblgit_changelog_build() {
         debug "${FUNCNAME[0]}: Writed version header for tag_range: \"${tag_range}\""
 
         ## Get the tag range authors list
-        arr_tag_range_authors=()
-
         for author in $(git log ${tag_range} --pretty=format:"%an" | sort -u); do
             debug "author: ${author}"
             arr_tag_range_authors+=( "${author}" )
-        done # de for authors 
-        debug "${FUNCNAME[0]}: Després de for authors: arr_tag_range_authors defined: ${tag_range[*]}"
-        pause "PRINT ARR AUTHORS: ${arr_tag_range_authors[@]}"
-
-
-
-exit
-
-
-
-        debug "${FUNCNAME[0]}: Nou for authors llegint de l'array, seguim dins for tag range \"${tag_range}\""
-        for author_arr in ${arr_tag_range_authors[@]}; do
-            echo "AUTHOR = ${author}"
-            exit
-
-            args_gitlog=( "--pretty=format:'* %h %s'" )
-            args_gitlog+=( "${tag_range}" )
-            args_gitlog+=( "--author=${author}" )
-            PAUSE "${FUNCNAME[0]}: utilitzant la comanda: git log ${args_gitlog[@]} >> \"${changelog_git_relpath_filename}\""
-            git log "${args_gitlog[@]}" >> "${changelog_git_relpath_filename}"
-        done
-            pause "EXECUTAT GIT LOG COMMITS"
-
-
-
-
-
-
-
-    done # de for tag_ranges, ha d'anar al final, pero el tinc aqui per testing"
-        debug "${FUNCNAME[0]}: Després de for tag_ranges: arr_tag_range_authors defined: ${tag_range[*]}"
-vim "${changelog_git_relpath_filename}"
-
-        exit
-
-        echo "  [ ${comm_ch_author} ]" >> "${changelog_git_relpath_filename}"
-            #arr_authors+=( "${comm_ch_author}" )
-
-
-
-        ## TAGS: USER INFO
-        #commiter_name=$(git show ${tag_commit_id_short} --pretty=format:"%cn" -s)
-        #commiter_email=$(git show ${tag_commit_id_short} --pretty=format:"%ce" -s)
-        #comm_ch_author=$(git show ${tag_commit_id_short} --pretty=format:"%an" -s)
-        #author_email=$(git show ${tag_commit_id_short} --pretty=format:"%ae" -s)
-
-
-
-
-
-
-
-
-
-
-                #| while IFS= read -r line
-                #do
-                #    echo "$line" >> "${changelog_git_relpath_filename}"
-                #done
-                #read -p "Pausa sortint de for 1 commits"
-
-                #| grep -v -E "${commit_pattern_exclude}" \
-                #FILTRE ARRAY | grep -v -E "$(IFS=\|; echo "${arr_comm_patterns_exclude[*]}")" \
-                #--pretty=format:"- %ad, %an :  * %h %s" \
-                #--date=format:'%Y%m%d%H%M%S' \
-                #| sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
-                #| sed "s/^- [0-9]\{14\}, ${comm_ch_author} ://" \
-#DESACTIVA
-        #read -p "ACABAT for 1 authors"
-
+            ## Write the austhor header
+            echo "  [ ${author} ]" >> "${changelog_git_relpath_filename}"
+            ## Get commits for each author
+            ## and tagsrange
+            git log ${tag_range} \
+                --pretty=format:'[%an]  * %h %s' \
+                | grep "${author}" \
+                | sed "s/^\[${author}\]//g" \
+                | grep -v -E "${commit_pattern_exclude}" \
+                >> "${changelog_git_relpath_filename}"
+        done #for authors 
+        debug "${FUNCNAME[0]}: Writed version footer for tag_range: \"${tag_range}\""
         ## Write the version footer
         echo >> "${changelog_git_relpath_filename}"
         echo  " -- ${packager_name} <${packager_email}>  ${date_now_long}" \
             >> "${changelog_git_relpath_filename}"
-        ## Increment the array position
-        tags_processed_count=$((tags_processed_count + 1))
-#    done # de for tag_ranges, el poso més a dalt pertesting
+        debug "${FUNCNAME[0]}: Finished arr_tag_range_authors creation with value: ${arr_tag_range_authors[@]} for the tag_range: ${tag_range[*]}"
+    done #for tag_ranges
 
+    # vim "${changelog_git_relpath_filename}"
 
-## RECORDA, FILTRE DE MISSATGES DE COMMIT
-#git log "${tag_ch_previous}".."${tag_ch_current}" --oneline | sed "s|(tag: ${tag_ch_current})||g' | grep -v -e 'Build release:' -e '(gitignore)' -e 'Increase version strings' -e '(pkg_rootfs)" \
-#            >> "${changelog_git_relpath_filename}"
+    PAUSE "commit_pattern_exclude: ${commit_pattern_exclude}"
+
+    # ARA tinc correcte:
+      # arr_tag_ranges
+      # arr_tags_found
+      # arr_tag_range_authors
+
     PAUSE "bbl-git: Finalized changelog file build from git log..."
-
-            #| sed 's/^- [0-9]\{14\}, berbascum : //' \
-
-
-            #pause "Pausa, comm_ch_author val ${comm_ch_author}"
-
-         #git log "${tag_ch_previous}".."${tag_ch_current}" --pretty=format:"%an %ad %B" --date=format:"%Y%m%d%H%M%S" | awk '{print $1}' | while read line; do
-#                pause "Pausa line: $line"
-#            done
-
-# Executar git log amb el format desitjat
-
-
-        # Executar git log amb el format desitjat
-
-
-#| awk '{$1=""; print substr($0,2)}'
-    # Imprimir cada línia
-    #| sed 's/berbascum//g' | sed 's/^[^ ]* //'
-    #| awk '{print $1}'
-    #| cut -d' ' -f1-
-    #awk '{print $1}'
-
-
-
-             #   pause "commit_ch: ${commit_ch}"
-            #--date=format:"%Y%m%d%H%M%S"
-            # | grep "^${comm_ch_author} "
-              #| sort -k2,2r
-          #| sed 's/^${comm_ch_author} //g' | sed 's/^[0-9]* //' >> "${changelog_git_relpath_filename}"
-#    pause "Pausa comanda que processa commits"
-          #git log --pretty=format:"%an %ad %B"  --date=format:"%Y%m%d%H%M%S" | grep "^${comm_ch_author} "| sort -k2,2r   | sed 's/^${comm_ch_author} //g' | sed 's/^[0-9]* //' >> "${changelog_git_relpath_filename}"
-                #| cut -d' ' -f2-
-                #| sed 's/^[^ ]* //'
-
-
-
-# git log --pretty=format:"%an %h %ad" --date=short | sort -k1,1 -k3,3r
-
-
-
-    
-
-<< "DISABLE"
-    git log --pretty=format:"%h %an %ae %cn %ce %cD %ci %s" "${prev_last_commit_id}"..."${last_commit_id}" > commits_tmpdir/export.txt
-    debug "bbl-git: File commits_tmpdir/export.txt created"
-    while read commit; do
-	commit_id_short=$(echo ${commit} | awk '{print $1}')
-	author_name=$(echo ${commit} | awk '{print $2}') ## %an
-	author_email=$(echo ${commit} | awk '{print $3}') ## %an
-	commiter_name=$(echo ${commit} | awk '{print $4}')
-	debug2 "commiter_name =${commiter_name}"
-	commiter_email=$(echo ${commit} | awk '{print $5}')
-        #COMMITTER_DATE_RFC2822=$(echo ${commit} \
-	    ##| awk '{print $6 " " $7 " "  $8 " "  $9 " "  $10 " " $11}')
-        #COMMITTER_DATE_COMPACTED=$(echo ${commit} | awk '{print $12 $13}' \
-	    ## | tr  -d "-" | tr -d ":")
-	commit_header=$(echo ${commit} | awk '{ for (i=15; i<=NF; i++) printf $i " " }')
-	debug2 "bbl-git: Commit header filtered = ${commit_header}"
-	commit_body=$(git show --format=%b ${commit_id_short} | awk 'NR==1,/diff --git/' \
-	    | grep --invert-match 'diff --git' | egrep '^[[:blank:]]*[^[:blank:]#]')
-        ## Put the commits in a file for each commiter
-	echo "  * (${commit_id_short}) ${commit_header}" \
-	    >> commits_tmpdir/${commiter_name}
-	if [ -n "${commit_body}" ]; then
-	    echo "              ${commit_body}" >> commits_tmpdir/${commiter_name}
-	fi
-    done <commits_tmpdir/export.txt
-    rm commits_tmpdir/export.txt
-    ## Cat every commiteter commits to the changelog file
-    for commiter_file in $(ls commits_tmpdir); do
-	echo "  [${commiter_name}]" >> "${changelog_git_relpath_filename}"
-        cat commits_tmpdir/${commiter_name} >> "${changelog_git_relpath_filename}"
-	echo >> "${changelog_git_relpath_filename}"
-    done
-    ## Committer of changes
-    echo  " -- ${changelog_builder_user} <${changelog_builder_email}>  ${date_full}" \
-        >> "${changelog_git_relpath_filename}"
-    rm -r commits_tmpdir
-DISABLE
-
 }
 
 fn_bblgit_commit_changes() {
+    ## TODO: 
     #file_updated="$1"
     commit_msg="$1"
     #file_updated_status=$(git status | grep "${file_updated}")
