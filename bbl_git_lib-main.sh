@@ -71,14 +71,85 @@ fn_bblgit_check_args() {
     else
         BATCH_MODE_BBL_GIT=false
     fi
-    info "batch mode: ${BATCH_MODE_BBL_GIT}"
+    info "bblgit-main: batch mode: ${BATCH_MODE_BBL_GIT}"
 }
 
 fn_bblgit_workdir_status_check() {
-    if [ -z "$(git status | grep "staged")" ]; then
-        info "${FUNCNAME[0]}: git workdir is clean!"
+grep_exclude_files=
+file_changed=
+file_staged=
+
+## NOTICE: I'm using "changed" files term to refer
+## globally to any state: "MTADRC"
+<< "MAY_BE_FOR_FUTURE"
+    ## Define workdir unclean modes
+    status_staged="^M "
+    status_modified="^ M"
+    status_untracked="^??"
+    status_added="^??"
+    arr_git_workdir_unclean_types=(
+        "${status_staged}"
+        "${status_modified}"
+        "${status_untracked}"
+MAY_BE_FOR_FUTURE
+
+    #arr_pkg_files_changed=( "test.sh" )
+    #arr_pkg_files_changed=( "test.sh" "version" )
+    ## Check for bdm changed files, if there are,
+    ## will be not considered as unclean
+    if [ "${#arr_pkg_files_changed[@]}" -eq "1" ]; then
+        grep_exclude_files="$(echo "${arr_pkg_files_changed[*]}")"
+        debug "${FUNCNAME[0]}: grep_exclude_file: \"${grep_exclude_files}\""
+    elif [ "${#arr_pkg_files_changed[@]}" -gt "1" ];then
+        grep_exclude_files="$(IFS=\|; echo "${arr_pkg_files_changed[*]}")"
+        debug "${FUNCNAME[0]}: grep_exclude_files: \"${grep_exclude_files}\""
+    fi
+    ## Set array with changed files in the workdir
+    ## Ex files changed by bdm which will be commited
+    cmd_git_status="git status --porcelain=v1"
+    if [ -n "${grep_exclude_files}" ]; then
+        eval "${cmd_git_status} \
+            | grep -v -E '${grep_exclude_files}'" \
+            | readarray -t arr_git_workdir_status
     else
-        error "${FUNCNAME[0]}: git workdir is not clean!"
+        readarray -t arr_git_workdir_status \
+            < <(eval "${cmd_git_status}")
+    fi
+    WARN "${FUNCNAME[0]}: files changed in the workworkdir:"
+    (IFS=''; printf '%s\n' ${arr_git_workdir_status[@]})
+    DEBUG "arr_git_workdir_status length: ${#arr_git_workdir_status[@]}"
+
+<< "MODE_VAR_OK"
+    git_workdir_status=$(eval \
+        "${cmd_git_status} $( \
+        [ "${#arr_pkg_files_changed[@]}" -ge "1" ] \
+        && echo \
+        "| grep -v -E '${grep_exclude_files}'" )")
+    WARN "${FUNCNAME[0]}: files changed in the workworkdir!"
+MODE_VAR_OK
+    
+    ## Check for staged files and abort if there are
+    arr_git_workdir_staged=()
+    grep_exclude_files=
+    if [ "${#arr_pkg_files_changed[@]}" -gt "0" ]; then
+        INFO "printf arr_git_workdir_status"
+        (IFS=''; printf '%s\n' ${arr_git_workdir_status[@]})
+    fi
+    IFS_BKP=$IFS
+    IFS=''
+    for file_changed in ${arr_git_workdir_status[@]}; do
+        file_staged="$(echo "${file_changed}" | grep "^[MTADRC]")"
+        if [ -n "${file_staged}" ]; then
+            arr_git_workdir_files_staged+=( "${file_staged}" )
+        fi
+    done
+    IFS=$IFS_BKP
+    if [ "${#arr_git_workdir_files_staged[@]}" -gt "0" ]; then
+        WARN "${FUNCNAME[0]}: files staged in the workworkdir:"
+        (IFS=''; printf '%s\n' ${arr_git_workdir_files_staged[@]})
+        ## Abort if there are staged files
+        debug "arr_git_workdir_files_staged length: ${#arr_git_workdir_files_staged[@]}"
+        error "Work dir unclean: staged files!"
     fi
 }
 
@@ -631,43 +702,47 @@ fn_bblgit_changelog_build() {
     info "bbl-git: Finalized changelog file build from git log..."
 }
 
-fn_bblgit_workdir_file_edited_ckeck() {
-    file_edited="$1"
-    file_edited_status=$(git status | grep "${file_edited}")
-    if [ -z "${file_edited_status}" ]; then
-        warn "${FUNCNAME[0]}: Something went wrong when trying to commit" \
-        PAUSE "${FUNCNAME[0]}: ERROR: The specified file \"${file_edited}\" is not in the git status"
-    else
-        debug "${FUNCNAME[0]}: The specified file \"${file_edited}\" was found as edited"
-    fi
-
-}
 
 fn_bblgit_commit_changes() {
-    ## TODO: 
     commit_msg="$1"
-    debug "${FUNCNAME[0]}: Starting checks for committing edited package files by the bdm build script "
+    debug "${FUNCNAME[0]}: Starting checks for committing changed package files by the bdm build script "
 
     ## Determine if sign can be used by the host
     fn_bblgit_check_if_can_sign
-    ## Ckeck if supplied finenames was really edited
-    for file_edited in ${arr_pkg_files_edited[@]}; do
-        fn_bblgit_workdir_file_edited_ckeck "${file_edited}"
-    done
-    ## If OK: fn_bblgit_workdir_file_edited_ckeck
-    debug "${FUNCNAME[0]}: All the specified files was found as edited: \"${arr_pkg_files_edited[*]}\""
     ## Now the workdir should be clean, check again
     fn_bblgit_workdir_status_check
-
-## TODO: Create --batch mode for bdm
-    info "${FUNCNAME[0]}: Committing the updated files: \"${arr_pkg_files_edited[*]}\"..."
+    ## Check if bdm changed files are found in index
+    pkg_files_changed_found=true
+    for pkg_file_changed in ${arr_pkg_files_changed[@]}; do
+        if git status --porcelain=v1 | grep "${pkg_file_changed}"; then
+            debug "${FUNCNAME[0]}: The specified file \"${pkg_file_changed}\" was found in the workdir status"
+        else
+            WARN "${FUNCNAME[0]}: Something went wrong when trying to commit" \
+            ERROR "${FUNCNAME[0]}: ERROR: Some of the specified files from arr_pkg_files_changed: \"${arr_pkg_files_changed}\" is not in the git status"
+        fi
+    done
+    ## Add bdm changed files and commit
+    debug "${FUNCNAME[0]}: Starting checks pre commit for bdm changed files: \"${arr_pkg_files_changed[*]}\"..."
     info "${FUNCNAME[0]}: tag_version defined: ${tag_version}"
     info "${FUNCNAME[0]}: tag_release defined: ${tag_release}"
-    ASK "Want continue? [ y | any ]: "
-    case "${answer}" in
-        y)
-            git add -A
-            eval "${GIT_COMMIT_CMD}"
-            ;;
-    esac
+    if [ "${BATCH_MODE_BDM_MAIN}" == "false" ]; then
+        ASK "Want continue? [ y | any ]: "
+        case "${answer}" in
+            y)
+                INFO "${FUNCNAME[0]}: Committing the updated files: \"${arr_pkg_files_changed[*]}\"..."
+                git add "${arr_pkg_files_changed[*]}"
+                eval "${GIT_COMMIT_CMD}"
+                ;;
+        esac
+        return
+    fi
+    if [ "${BDM_AUTO_COMMIT}" == "true" ]; then
+        debug "${FUNCNAME[0]}: BDM_AUTO_COMMIT = ${BDM_AUTO_COMMIT}"
+        INFO "${FUNCNAME[0]}: Committing the updated files: \"${arr_pkg_files_changed[*]}\"..."
+        git add "${arr_pkg_files_changed[*]}"
+        eval "${GIT_COMMIT_CMD}"
+    else
+        debug "${FUNCNAME[0]}: BDM_AUTO_COMMIT = ${BDM_AUTO_COMMIT}"
+        debug "${FUNCNAME[0]}: Skipping commit step"
+    fi 
 }
